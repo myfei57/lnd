@@ -32,7 +32,9 @@ service WalletKit {
     ListUnspent returns a list of all utxos spendable by the wallet with a
     number of confirmations between the specified minimum and maximum. By
     default, all utxos are listed. To list only the unconfirmed utxos, set
-    the unconfirmed_only to true.
+    the unconfirmed_only to true. The optional sort_field and
+    sort_direction parameters order the result after filtering without
+    locking, spending or modifying any of the returned outputs.
     */
     rpc ListUnspent (ListUnspentRequest) returns (ListUnspentResponse);
 
@@ -462,6 +464,24 @@ message ListUnspentRequest {
     and max_confs are non-zero. (default: false)
     */
     bool unconfirmed_only = 4;
+
+    // An optional field to sort the resulting utxos by. When left
+    // unspecified, the utxos are returned in the order reported by the
+    // underlying wallet. Sorting is applied after all confirmation,
+    // account and unconfirmed_only filters and never locks, spends or
+    // modifies any output. Utxos with equal amounts or equal numbers of
+    // confirmations are always ordered by the raw bytes of their outpoint
+    // transaction ID and then by their output index, both in ascending
+    // order.
+    ListUnspentSortField sort_field = 5;
+
+    /*
+    The direction in which to sort the utxos. It must only be set in
+    combination with sort_field; setting a direction without a sort field
+    results in an error. When sort_field is set but no direction is
+    specified, ascending order is used.
+    */
+    SortDirection sort_direction = 6;
 }
 
 message ListUnspentResponse {
@@ -1585,6 +1605,41 @@ enum ChangeAddressType {
     // CHANGE_ADDRESS_TYPE_P2TR indicates to use P2TR address for change output
     // (BIP0086 key scope).
     CHANGE_ADDRESS_TYPE_P2TR = 1;
+}
+
+// ListUnspentSortField selects the utxo property that ListUnspent uses to
+// order its response.
+enum ListUnspentSortField {
+    // LIST_UNSPENT_SORT_FIELD_UNSPECIFIED indicates that no sorting should
+    // be performed and the utxos are returned in the order reported by the
+    // underlying wallet.
+    LIST_UNSPENT_SORT_FIELD_UNSPECIFIED = 0;
+
+    // LIST_UNSPENT_SORT_FIELD_AMOUNT sorts the utxos by their value in
+    // satoshis.
+    LIST_UNSPENT_SORT_FIELD_AMOUNT = 1;
+
+    // LIST_UNSPENT_SORT_FIELD_CONFIRMATIONS sorts the utxos by their number
+    // of confirmations.
+    LIST_UNSPENT_SORT_FIELD_CONFIRMATIONS = 2;
+
+    // LIST_UNSPENT_SORT_FIELD_OUTPOINT sorts the utxos by the raw bytes of
+    // their outpoint transaction ID and then by their output index.
+    LIST_UNSPENT_SORT_FIELD_OUTPOINT = 3;
+}
+
+// SortDirection selects the ordering applied to a ListUnspent sort field.
+enum SortDirection {
+    // SORT_DIRECTION_UNSPECIFIED indicates that no sort direction was
+    // chosen. It is only valid together with an unspecified sort field;
+    // setting a direction without a sort field results in an error.
+    SORT_DIRECTION_UNSPECIFIED = 0;
+
+    // SORT_DIRECTION_ASC sorts the selected field in ascending order.
+    SORT_DIRECTION_ASC = 1;
+
+    // SORT_DIRECTION_DESC sorts the selected field in descending order.
+    SORT_DIRECTION_DESC = 2;
 }
 
 message FundPsbtRequest {

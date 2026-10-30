@@ -901,7 +901,7 @@
     },
     "/v2/wallet/utxos": {
       "post": {
-        "summary": "ListUnspent returns a list of all utxos spendable by the wallet with a\nnumber of confirmations between the specified minimum and maximum. By\ndefault, all utxos are listed. To list only the unconfirmed utxos, set\nthe unconfirmed_only to true.",
+        "summary": "ListUnspent returns a list of all utxos spendable by the wallet with a\nnumber of confirmations between the specified minimum and maximum. By\ndefault, all utxos are listed. To list only the unconfirmed utxos, set\nthe unconfirmed_only to true. The optional sort_field and\nsort_direction parameters order the result after filtering without\nlocking, spending or modifying any of the returned outputs.",
         "operationId": "WalletKit_ListUnspent",
         "responses": {
           "200": {
@@ -1992,6 +1992,14 @@
         "unconfirmed_only": {
           "type": "boolean",
           "title": "When min_confs and max_confs are zero, setting false implicitly\noverrides max_confs to be MaxInt32, otherwise max_confs remains\nzero. An error is returned if the value is true and both min_confs\nand max_confs are non-zero. (default: false)"
+        },
+        "sort_field": {
+          "$ref": "#/definitions/walletrpcListUnspentSortField",
+          "description": "An optional field to sort the resulting utxos by. When left\nunspecified, the utxos are returned in the order reported by the\nunderlying wallet. Sorting is applied after all confirmation,\naccount and unconfirmed_only filters and never locks, spends or\nmodifies any output. Utxos with equal amounts or equal numbers of\nconfirmations are always ordered by the raw bytes of their outpoint\ntransaction ID and then by their output index, both in ascending\norder."
+        },
+        "sort_direction": {
+          "$ref": "#/definitions/walletrpcSortDirection",
+          "description": "The direction in which to sort the utxos. It must only be set in\ncombination with sort_field; setting a direction without a sort field\nresults in an error. When sort_field is set but no direction is\nspecified, ascending order is used."
         }
       }
     },
@@ -2007,6 +2015,17 @@
           "description": "A list of utxos satisfying the specified number of confirmations."
         }
       }
+    },
+    "walletrpcListUnspentSortField": {
+      "type": "string",
+      "enum": [
+        "LIST_UNSPENT_SORT_FIELD_UNSPECIFIED",
+        "LIST_UNSPENT_SORT_FIELD_AMOUNT",
+        "LIST_UNSPENT_SORT_FIELD_CONFIRMATIONS",
+        "LIST_UNSPENT_SORT_FIELD_OUTPOINT"
+      ],
+      "default": "LIST_UNSPENT_SORT_FIELD_UNSPECIFIED",
+      "description": "ListUnspentSortField selects the utxo property that ListUnspent uses to\norder its response.\n\n - LIST_UNSPENT_SORT_FIELD_UNSPECIFIED: LIST_UNSPENT_SORT_FIELD_UNSPECIFIED indicates that no sorting should\nbe performed and the utxos are returned in the order reported by the\nunderlying wallet.\n - LIST_UNSPENT_SORT_FIELD_AMOUNT: LIST_UNSPENT_SORT_FIELD_AMOUNT sorts the utxos by their value in\nsatoshis.\n - LIST_UNSPENT_SORT_FIELD_CONFIRMATIONS: LIST_UNSPENT_SORT_FIELD_CONFIRMATIONS sorts the utxos by their number\nof confirmations.\n - LIST_UNSPENT_SORT_FIELD_OUTPOINT: LIST_UNSPENT_SORT_FIELD_OUTPOINT sorts the utxos by the raw bytes of\ntheir outpoint transaction ID and then by their output index."
     },
     "walletrpcPendingSweep": {
       "type": "object",
@@ -2262,6 +2281,16 @@
           "description": "The indices of signed inputs."
         }
       }
+    },
+    "walletrpcSortDirection": {
+      "type": "string",
+      "enum": [
+        "SORT_DIRECTION_UNSPECIFIED",
+        "SORT_DIRECTION_ASC",
+        "SORT_DIRECTION_DESC"
+      ],
+      "default": "SORT_DIRECTION_UNSPECIFIED",
+      "description": "SortDirection selects the ordering applied to a ListUnspent sort field.\n\n - SORT_DIRECTION_UNSPECIFIED: SORT_DIRECTION_UNSPECIFIED indicates that no sort direction was\nchosen. It is only valid together with an unspecified sort field;\nsetting a direction without a sort field results in an error.\n - SORT_DIRECTION_ASC: SORT_DIRECTION_ASC sorts the selected field in ascending order.\n - SORT_DIRECTION_DESC: SORT_DIRECTION_DESC sorts the selected field in descending order."
     },
     "walletrpcSubmitPackageRequest": {
       "type": "object",

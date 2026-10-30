@@ -14,6 +14,7 @@ import (
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
 	"github.com/btcsuite/btcd/btcutil/v2"
+	"github.com/btcsuite/btcd/chaincfg/v2"
 	"github.com/btcsuite/btcd/chainhash/v2"
 	"github.com/btcsuite/btcd/psbt/v2"
 	"github.com/btcsuite/btcd/txscript/v2"
@@ -914,6 +915,453 @@ func TestFundPsbtCoinSelect(t *testing.T) {
 					changeOut.Value,
 				)
 			}
+		})
+	}
+}
+
+// hash01, hash02 and hashFF are ordered by their raw bytes as
+// hash01 < hash02 < hashFF, even though the same is not true for the
+// byte-reversed txid strings shown to users.
+var (
+	hash01 = chainhash.Hash{31: 0x01}
+	hash02 = chainhash.Hash{31: 0x02}
+	hashFF = chainhash.Hash{0: 0xff}
+)
+
+// newSortTestUtxos returns a fresh, deliberately unordered set of utxos that
+// share amounts or confirmation counts, so the outpoint tie breaker is
+// exercised.
+func newSortTestUtxos() []*lnwallet.Utxo {
+	return []*lnwallet.Utxo{
+		{
+			AddressType:   lnwallet.WitnessPubKey,
+			Value:         3_000,
+			Confirmations: 3,
+			PkScript:      mock.CoinPkScript,
+			OutPoint:      wire.OutPoint{Hash: hashFF, Index: 1},
+		},
+		{
+			AddressType:   lnwallet.WitnessPubKey,
+			Value:         1_000,
+			Confirmations: 1,
+			PkScript:      mock.CoinPkScript,
+			OutPoint:      wire.OutPoint{Hash: hash02, Index: 9},
+		},
+		{
+			AddressType:   lnwallet.WitnessPubKey,
+			Value:         1_000,
+			Confirmations: 9,
+			PkScript:      mock.CoinPkScript,
+			OutPoint:      wire.OutPoint{Hash: hash01, Index: 5},
+		},
+		{
+			AddressType:   lnwallet.WitnessPubKey,
+			Value:         2_000,
+			Confirmations: 1,
+			PkScript:      mock.CoinPkScript,
+			OutPoint:      wire.OutPoint{Hash: hash02, Index: 2},
+		},
+		{
+			AddressType:   lnwallet.WitnessPubKey,
+			Value:         3_000,
+			Confirmations: 7,
+			PkScript:      mock.CoinPkScript,
+			OutPoint:      wire.OutPoint{Hash: hash01, Index: 8},
+		},
+	}
+}
+
+// utxoKeys identifies the order of utxos as raw txid bytes plus output
+// index.
+func utxoKeys(t *testing.T, utxos []*lnwallet.Utxo) []string {
+	t.Helper()
+
+	keys := make([]string, len(utxos))
+	for i, utxo := range utxos {
+		keys[i] = fmt.Sprintf("%s:%d", utxo.Hash[:], utxo.Index)
+	}
+
+	return keys
+}
+
+func rpcUtxoKeys(t *testing.T, utxos []*lnrpc.Utxo) []string {
+	t.Helper()
+
+	keys := make([]string, len(utxos))
+	for i, utxo := range utxos {
+		op := utxo.Outpoint
+		keys[i] = fmt.Sprintf("%s:%d", op.TxidBytes, op.OutputIndex)
+	}
+
+	return keys
+}
+
+// reverseUtxos returns a copy of utxos in reverse order.
+func reverseUtxos(utxos []*lnwallet.Utxo) []*lnwallet.Utxo {
+	reversed := make([]*lnwallet.Utxo, len(utxos))
+	for i, utxo := range utxos {
+		reversed[len(utxos)-1-i] = utxo
+	}
+
+	return reversed
+}
+
+// TestSortUtxos verifies that sortUtxos orders utxos by amount,
+// confirmations or outpoint in ascending or descending direction, that
+// equal primary keys are broken by the raw outpoint bytes and output index,
+// that an empty result is handled, and that the resulting order does not
+// depend on the input order.
+func TestSortUtxos(t *testing.T) {
+	t.Parallel()
+
+	key01_5 := fmt.Sprintf("%s:5", hash01[:])
+	key01_8 := fmt.Sprintf("%s:8", hash01[:])
+	key02_2 := fmt.Sprintf("%s:2", hash02[:])
+	key02_9 := fmt.Sprintf("%s:9", hash02[:])
+	keyFF_1 := fmt.Sprintf("%s:1", hashFF[:])
+
+	testCases := []struct {
+		name      string
+		field     ListUnspentSortField
+		direction SortDirection
+		expected  []string
+	}{{
+		name:      "amount ascending",
+		field:     ListUnspentSortField_LIST_UNSPENT_SORT_FIELD_AMOUNT,
+		direction: SortDirection_SORT_DIRECTION_ASC,
+		expected: []string{
+			key01_5, key02_9, key02_2, key01_8, keyFF_1,
+		},
+	}, {
+		name:      "amount descending",
+		field:     ListUnspentSortField_LIST_UNSPENT_SORT_FIELD_AMOUNT,
+		direction: SortDirection_SORT_DIRECTION_DESC,
+		expected: []string{
+			key01_8, keyFF_1, key02_2, key01_5, key02_9,
+		},
+	}, {
+		name:      "amount defaults to ascending without a direction",
+		field:     ListUnspentSortField_LIST_UNSPENT_SORT_FIELD_AMOUNT,
+		direction: SortDirection_SORT_DIRECTION_UNSPECIFIED,
+		expected: []string{
+			key01_5, key02_9, key02_2, key01_8, keyFF_1,
+		},
+	}, {
+		name:      "confirmations ascending",
+		field:     ListUnspentSortField_LIST_UNSPENT_SORT_FIELD_CONFIRMATIONS,
+		direction: SortDirection_SORT_DIRECTION_ASC,
+		expected: []string{
+			key02_2, key02_9, keyFF_1, key01_8, key01_5,
+		},
+	}, {
+		name:      "confirmations descending",
+		field:     ListUnspentSortField_LIST_UNSPENT_SORT_FIELD_CONFIRMATIONS,
+		direction: SortDirection_SORT_DIRECTION_DESC,
+		expected: []string{
+			key01_5, key01_8, keyFF_1, key02_2, key02_9,
+		},
+	}, {
+		name:      "outpoint ascending raw bytes then index",
+		field:     ListUnspentSortField_LIST_UNSPENT_SORT_FIELD_OUTPOINT,
+		direction: SortDirection_SORT_DIRECTION_ASC,
+		expected: []string{
+			key01_5, key01_8, key02_2, key02_9, keyFF_1,
+		},
+	}, {
+		name:      "outpoint descending",
+		field:     ListUnspentSortField_LIST_UNSPENT_SORT_FIELD_OUTPOINT,
+		direction: SortDirection_SORT_DIRECTION_DESC,
+		expected: []string{
+			keyFF_1, key02_9, key02_2, key01_8, key01_5,
+		},
+	}}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(tt *testing.T) {
+			tt.Parallel()
+
+			// Sort the unordered set and verify the expected
+			// order.
+			utxos := newSortTestUtxos()
+			sortUtxos(utxos, tc.field, tc.direction)
+			require.Equal(tt, tc.expected, utxoKeys(tt, utxos))
+
+			// Sorting a differently ordered set containing the
+			// same utxos must produce the exact same order.
+			reversed := reverseUtxos(newSortTestUtxos())
+			sortUtxos(reversed, tc.field, tc.direction)
+			require.Equal(
+				tt, tc.expected, utxoKeys(tt, reversed),
+			)
+		})
+	}
+
+	// Equal amounts and confirmations across multiple utxos are always
+	// ordered by the raw outpoint transaction ID bytes and the output
+	// index in ascending order.
+	t.Run("equal amount and confirmations tie on outpoint", func(tt *testing.T) {
+		tt.Parallel()
+
+		utxos := []*lnwallet.Utxo{
+			{
+				Value:         1_000,
+				Confirmations: 6,
+				OutPoint:      wire.OutPoint{Hash: hashFF, Index: 3},
+			},
+			{
+				Value:         1_000,
+				Confirmations: 6,
+				OutPoint:      wire.OutPoint{Hash: hashFF, Index: 1},
+			},
+			{
+				Value:         1_000,
+				Confirmations: 6,
+				OutPoint:      wire.OutPoint{Hash: hash01, Index: 9},
+			},
+			{
+				Value:         1_000,
+				Confirmations: 6,
+				OutPoint:      wire.OutPoint{Hash: hash01, Index: 2},
+			},
+		}
+
+		sortUtxos(
+			utxos, ListUnspentSortField_LIST_UNSPENT_SORT_FIELD_AMOUNT,
+			SortDirection_SORT_DIRECTION_ASC,
+		)
+
+		require.Equal(tt, []string{
+			fmt.Sprintf("%s:2", hash01[:]),
+			fmt.Sprintf("%s:9", hash01[:]),
+			fmt.Sprintf("%s:1", hashFF[:]),
+			fmt.Sprintf("%s:3", hashFF[:]),
+		}, utxoKeys(tt, utxos))
+
+		// In descending amount order the outpoint tie breaker still
+		// remains ascending, only equal amounts stay grouped.
+		descending := reverseUtxos(utxos)
+		sortUtxos(
+			descending, ListUnspentSortField_LIST_UNSPENT_SORT_FIELD_AMOUNT,
+			SortDirection_SORT_DIRECTION_DESC,
+		)
+		require.Equal(tt, utxoKeys(tt, utxos), utxoKeys(tt, descending))
+	})
+
+	// Sorting an empty set must be a no-op and must not panic.
+	t.Run("empty result", func(tt *testing.T) {
+		tt.Parallel()
+
+		var utxos []*lnwallet.Utxo
+		require.NotPanics(tt, func() {
+			sortUtxos(
+				utxos, ListUnspentSortField_LIST_UNSPENT_SORT_FIELD_AMOUNT,
+				SortDirection_SORT_DIRECTION_ASC,
+			)
+		})
+		require.Empty(tt, utxos)
+	})
+}
+
+// TestListUnspentSortValidation verifies that invalid sort parameters are
+// rejected with explicit errors and that valid combinations are accepted.
+func TestListUnspentSortValidation(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name          string
+		field         ListUnspentSortField
+		direction     SortDirection
+		expectedError string
+	}{{
+		name:      "no sort parameters",
+		field:     ListUnspentSortField_LIST_UNSPENT_SORT_FIELD_UNSPECIFIED,
+		direction: SortDirection_SORT_DIRECTION_UNSPECIFIED,
+	}, {
+		name:      "amount ascending",
+		field:     ListUnspentSortField_LIST_UNSPENT_SORT_FIELD_AMOUNT,
+		direction: SortDirection_SORT_DIRECTION_ASC,
+	}, {
+		name:      "field without direction defaults to ascending",
+		field:     ListUnspentSortField_LIST_UNSPENT_SORT_FIELD_OUTPOINT,
+		direction: SortDirection_SORT_DIRECTION_UNSPECIFIED,
+	}, {
+		name:          "unknown sort field",
+		field:         ListUnspentSortField(99),
+		direction:     SortDirection_SORT_DIRECTION_UNSPECIFIED,
+		expectedError: "unknown sort_field",
+	}, {
+		name:          "unknown sort direction",
+		field:         ListUnspentSortField_LIST_UNSPENT_SORT_FIELD_AMOUNT,
+		direction:     SortDirection(99),
+		expectedError: "unknown sort_direction",
+	}, {
+		name:      "direction without field",
+		field:     ListUnspentSortField_LIST_UNSPENT_SORT_FIELD_UNSPECIFIED,
+		direction: SortDirection_SORT_DIRECTION_ASC,
+		expectedError: "sort_direction can only be set in combination " +
+			"with sort_field",
+	}, {
+		name:      "descending direction without field",
+		field:     ListUnspentSortField_LIST_UNSPENT_SORT_FIELD_UNSPECIFIED,
+		direction: SortDirection_SORT_DIRECTION_DESC,
+		expectedError: "sort_direction can only be set in combination " +
+			"with sort_field",
+	}}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(tt *testing.T) {
+			tt.Parallel()
+
+			err := validateListUnspentSort(tc.field, tc.direction)
+			if tc.expectedError == "" {
+				require.NoError(tt, err)
+
+				return
+			}
+
+			require.ErrorContains(tt, err, tc.expectedError)
+		})
+	}
+}
+
+// newListUnspentTestServer creates a WalletKit RPC server backed by a mock
+// wallet that returns the given utxos for any ListUnspentWitness call.
+func newListUnspentTestServer(t *testing.T,
+	utxos []*lnwallet.Utxo) *WalletKit {
+
+	t.Helper()
+
+	walletMock := &mock.WalletController{Utxos: utxos}
+	rpcServer, _, err := New(&Config{
+		Wallet:              walletMock,
+		CoinSelectionLocker: &mockCoinSelectionLocker{},
+		ChainParams:         &chaincfg.TestNet3Params,
+	})
+	require.NoError(t, err)
+
+	return rpcServer
+}
+
+// TestListUnspentSorting exercises the full ListUnspent RPC, verifying that
+// the response is ordered after filtering, that the default order is
+// preserved without sort parameters and that parameter errors are
+// returned.
+func TestListUnspentSorting(t *testing.T) {
+	t.Parallel()
+
+	key01_5 := fmt.Sprintf("%s:5", hash01[:])
+	key02_2 := fmt.Sprintf("%s:2", hash02[:])
+	key02_9 := fmt.Sprintf("%s:9", hash02[:])
+	key01_8 := fmt.Sprintf("%s:8", hash01[:])
+	keyFF_1 := fmt.Sprintf("%s:1", hashFF[:])
+
+	t.Run("preserves wallet order without sort parameters", func(tt *testing.T) {
+		tt.Parallel()
+
+		utxos := newSortTestUtxos()
+		server := newListUnspentTestServer(tt, utxos)
+
+		resp, err := server.ListUnspent(
+			tt.Context(), &ListUnspentRequest{},
+		)
+		require.NoError(tt, err)
+		require.Equal(
+			tt, utxoKeys(tt, utxos), rpcUtxoKeys(tt, resp.Utxos),
+		)
+	})
+
+	t.Run("orders by amount ascending", func(tt *testing.T) {
+		tt.Parallel()
+
+		server := newListUnspentTestServer(tt, newSortTestUtxos())
+
+		resp, err := server.ListUnspent(tt.Context(), &ListUnspentRequest{
+			SortField: ListUnspentSortField_LIST_UNSPENT_SORT_FIELD_AMOUNT,
+		})
+		require.NoError(tt, err)
+		require.Equal(tt, []string{
+			key01_5, key02_9, key02_2, key01_8, keyFF_1,
+		}, rpcUtxoKeys(tt, resp.Utxos))
+	})
+
+	t.Run("orders by confirmations descending", func(tt *testing.T) {
+		tt.Parallel()
+
+		server := newListUnspentTestServer(tt, newSortTestUtxos())
+
+		resp, err := server.ListUnspent(tt.Context(), &ListUnspentRequest{
+			SortField:     ListUnspentSortField_LIST_UNSPENT_SORT_FIELD_CONFIRMATIONS,
+			SortDirection: SortDirection_SORT_DIRECTION_DESC,
+		})
+		require.NoError(tt, err)
+		require.Equal(tt, []string{
+			key01_5, key01_8, keyFF_1, key02_2, key02_9,
+		}, rpcUtxoKeys(tt, resp.Utxos))
+	})
+
+	t.Run("orders by outpoint ascending", func(tt *testing.T) {
+		tt.Parallel()
+
+		server := newListUnspentTestServer(tt, newSortTestUtxos())
+
+		resp, err := server.ListUnspent(tt.Context(), &ListUnspentRequest{
+			SortField:     ListUnspentSortField_LIST_UNSPENT_SORT_FIELD_OUTPOINT,
+			SortDirection: SortDirection_SORT_DIRECTION_ASC,
+		})
+		require.NoError(tt, err)
+		require.Equal(tt, []string{
+			key01_5, key01_8, key02_2, key02_9, keyFF_1,
+		}, rpcUtxoKeys(tt, resp.Utxos))
+	})
+
+	t.Run("empty result", func(tt *testing.T) {
+		tt.Parallel()
+
+		server := newListUnspentTestServer(
+			tt, []*lnwallet.Utxo{},
+		)
+
+		resp, err := server.ListUnspent(tt.Context(), &ListUnspentRequest{
+			SortField: ListUnspentSortField_LIST_UNSPENT_SORT_FIELD_AMOUNT,
+		})
+		require.NoError(tt, err)
+		require.Empty(tt, resp.Utxos)
+	})
+
+	errorCases := []struct {
+		name          string
+		req           *ListUnspentRequest
+		expectedError string
+	}{{
+		name: "unknown sort field",
+		req: &ListUnspentRequest{
+			SortField: ListUnspentSortField(99),
+		},
+		expectedError: "unknown sort_field",
+	}, {
+		name: "unknown sort direction",
+		req: &ListUnspentRequest{
+			SortField:     ListUnspentSortField_LIST_UNSPENT_SORT_FIELD_AMOUNT,
+			SortDirection: SortDirection(99),
+		},
+		expectedError: "unknown sort_direction",
+	}, {
+		name: "direction without field",
+		req: &ListUnspentRequest{
+			SortDirection: SortDirection_SORT_DIRECTION_ASC,
+		},
+		expectedError: "sort_direction can only be set in combination " +
+			"with sort_field",
+	}}
+
+	for _, tc := range errorCases {
+		t.Run(tc.name, func(tt *testing.T) {
+			tt.Parallel()
+
+			server := newListUnspentTestServer(tt, newSortTestUtxos())
+
+			_, err := server.ListUnspent(tt.Context(), tc.req)
+			require.ErrorContains(tt, err, tc.expectedError)
 		})
 	}
 }

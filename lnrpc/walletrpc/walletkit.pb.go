@@ -469,6 +469,124 @@ func (ChangeAddressType) EnumDescriptor() ([]byte, []int) {
 	return file_walletrpc_walletkit_proto_rawDescGZIP(), []int{2}
 }
 
+// ListUnspentSortField selects the utxo property that ListUnspent uses to
+// order its response.
+type ListUnspentSortField int32
+
+const (
+	// LIST_UNSPENT_SORT_FIELD_UNSPECIFIED indicates that no sorting should
+	// be performed and the utxos are returned in the order reported by the
+	// underlying wallet.
+	ListUnspentSortField_LIST_UNSPENT_SORT_FIELD_UNSPECIFIED ListUnspentSortField = 0
+	// LIST_UNSPENT_SORT_FIELD_AMOUNT sorts the utxos by their value in
+	// satoshis.
+	ListUnspentSortField_LIST_UNSPENT_SORT_FIELD_AMOUNT ListUnspentSortField = 1
+	// LIST_UNSPENT_SORT_FIELD_CONFIRMATIONS sorts the utxos by their number
+	// of confirmations.
+	ListUnspentSortField_LIST_UNSPENT_SORT_FIELD_CONFIRMATIONS ListUnspentSortField = 2
+	// LIST_UNSPENT_SORT_FIELD_OUTPOINT sorts the utxos by the raw bytes of
+	// their outpoint transaction ID and then by their output index.
+	ListUnspentSortField_LIST_UNSPENT_SORT_FIELD_OUTPOINT ListUnspentSortField = 3
+)
+
+// Enum value maps for ListUnspentSortField.
+var (
+	ListUnspentSortField_name = map[int32]string{
+		0: "LIST_UNSPENT_SORT_FIELD_UNSPECIFIED",
+		1: "LIST_UNSPENT_SORT_FIELD_AMOUNT",
+		2: "LIST_UNSPENT_SORT_FIELD_CONFIRMATIONS",
+		3: "LIST_UNSPENT_SORT_FIELD_OUTPOINT",
+	}
+	ListUnspentSortField_value = map[string]int32{
+		"LIST_UNSPENT_SORT_FIELD_UNSPECIFIED":   0,
+		"LIST_UNSPENT_SORT_FIELD_AMOUNT":        1,
+		"LIST_UNSPENT_SORT_FIELD_CONFIRMATIONS": 2,
+		"LIST_UNSPENT_SORT_FIELD_OUTPOINT":      3,
+	}
+)
+
+func (x ListUnspentSortField) Enum() *ListUnspentSortField {
+	p := new(ListUnspentSortField)
+	*p = x
+	return p
+}
+
+func (x ListUnspentSortField) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ListUnspentSortField) Descriptor() protoreflect.EnumDescriptor {
+	return file_walletrpc_walletkit_proto_enumTypes[3].Descriptor()
+}
+
+func (ListUnspentSortField) Type() protoreflect.EnumType {
+	return &file_walletrpc_walletkit_proto_enumTypes[3]
+}
+
+func (x ListUnspentSortField) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ListUnspentSortField.Descriptor instead.
+func (ListUnspentSortField) EnumDescriptor() ([]byte, []int) {
+	return file_walletrpc_walletkit_proto_rawDescGZIP(), []int{3}
+}
+
+// SortDirection selects the ordering applied to a ListUnspent sort field.
+type SortDirection int32
+
+const (
+	// SORT_DIRECTION_UNSPECIFIED indicates that no sort direction was
+	// chosen. It is only valid together with an unspecified sort field;
+	// setting a direction without a sort field results in an error.
+	SortDirection_SORT_DIRECTION_UNSPECIFIED SortDirection = 0
+	// SORT_DIRECTION_ASC sorts the selected field in ascending order.
+	SortDirection_SORT_DIRECTION_ASC SortDirection = 1
+	// SORT_DIRECTION_DESC sorts the selected field in descending order.
+	SortDirection_SORT_DIRECTION_DESC SortDirection = 2
+)
+
+// Enum value maps for SortDirection.
+var (
+	SortDirection_name = map[int32]string{
+		0: "SORT_DIRECTION_UNSPECIFIED",
+		1: "SORT_DIRECTION_ASC",
+		2: "SORT_DIRECTION_DESC",
+	}
+	SortDirection_value = map[string]int32{
+		"SORT_DIRECTION_UNSPECIFIED": 0,
+		"SORT_DIRECTION_ASC":         1,
+		"SORT_DIRECTION_DESC":        2,
+	}
+)
+
+func (x SortDirection) Enum() *SortDirection {
+	p := new(SortDirection)
+	*p = x
+	return p
+}
+
+func (x SortDirection) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (SortDirection) Descriptor() protoreflect.EnumDescriptor {
+	return file_walletrpc_walletkit_proto_enumTypes[4].Descriptor()
+}
+
+func (SortDirection) Type() protoreflect.EnumType {
+	return &file_walletrpc_walletkit_proto_enumTypes[4]
+}
+
+func (x SortDirection) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use SortDirection.Descriptor instead.
+func (SortDirection) EnumDescriptor() ([]byte, []int) {
+	return file_walletrpc_walletkit_proto_rawDescGZIP(), []int{4}
+}
+
 type ListUnspentRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The minimum number of confirmations to be included.
@@ -483,8 +601,23 @@ type ListUnspentRequest struct {
 	//zero. An error is returned if the value is true and both min_confs
 	//and max_confs are non-zero. (default: false)
 	UnconfirmedOnly bool `protobuf:"varint,4,opt,name=unconfirmed_only,json=unconfirmedOnly,proto3" json:"unconfirmed_only,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// An optional field to sort the resulting utxos by. When left
+	// unspecified, the utxos are returned in the order reported by the
+	// underlying wallet. Sorting is applied after all confirmation,
+	// account and unconfirmed_only filters and never locks, spends or
+	// modifies any output. Utxos with equal amounts or equal numbers of
+	// confirmations are always ordered by the raw bytes of their outpoint
+	// transaction ID and then by their output index, both in ascending
+	// order.
+	SortField ListUnspentSortField `protobuf:"varint,5,opt,name=sort_field,json=sortField,proto3,enum=walletrpc.ListUnspentSortField" json:"sort_field,omitempty"`
+	//
+	//The direction in which to sort the utxos. It must only be set in
+	//combination with sort_field; setting a direction without a sort field
+	//results in an error. When sort_field is set but no direction is
+	//specified, ascending order is used.
+	SortDirection SortDirection `protobuf:"varint,6,opt,name=sort_direction,json=sortDirection,proto3,enum=walletrpc.SortDirection" json:"sort_direction,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListUnspentRequest) Reset() {
@@ -543,6 +676,20 @@ func (x *ListUnspentRequest) GetUnconfirmedOnly() bool {
 		return x.UnconfirmedOnly
 	}
 	return false
+}
+
+func (x *ListUnspentRequest) GetSortField() ListUnspentSortField {
+	if x != nil {
+		return x.SortField
+	}
+	return ListUnspentSortField_LIST_UNSPENT_SORT_FIELD_UNSPECIFIED
+}
+
+func (x *ListUnspentRequest) GetSortDirection() SortDirection {
+	if x != nil {
+		return x.SortDirection
+	}
+	return SortDirection_SORT_DIRECTION_UNSPECIFIED
 }
 
 type ListUnspentResponse struct {
@@ -5031,12 +5178,15 @@ var File_walletrpc_walletkit_proto protoreflect.FileDescriptor
 
 const file_walletrpc_walletkit_proto_rawDesc = "" +
 	"\n" +
-	"\x19walletrpc/walletkit.proto\x12\twalletrpc\x1a\x0flightning.proto\x1a\x14signrpc/signer.proto\"\x93\x01\n" +
+	"\x19walletrpc/walletkit.proto\x12\twalletrpc\x1a\x0flightning.proto\x1a\x14signrpc/signer.proto\"\x94\x02\n" +
 	"\x12ListUnspentRequest\x12\x1b\n" +
 	"\tmin_confs\x18\x01 \x01(\x05R\bminConfs\x12\x1b\n" +
 	"\tmax_confs\x18\x02 \x01(\x05R\bmaxConfs\x12\x18\n" +
 	"\aaccount\x18\x03 \x01(\tR\aaccount\x12)\n" +
-	"\x10unconfirmed_only\x18\x04 \x01(\bR\x0funconfirmedOnly\"8\n" +
+	"\x10unconfirmed_only\x18\x04 \x01(\bR\x0funconfirmedOnly\x12>\n" +
+	"\n" +
+	"sort_field\x18\x05 \x01(\x0e2\x1f.walletrpc.ListUnspentSortFieldR\tsortField\x12?\n" +
+	"\x0esort_direction\x18\x06 \x01(\x0e2\x18.walletrpc.SortDirectionR\rsortDirection\"8\n" +
 	"\x13ListUnspentResponse\x12!\n" +
 	"\x05utxos\x18\x01 \x03(\v2\v.lnrpc.UtxoR\x05utxos\"\xbb\x01\n" +
 	"\x12LeaseOutputRequest\x12\x0e\n" +
@@ -5381,7 +5531,16 @@ const file_walletrpc_walletkit_proto_rawDesc = "" +
 	"\x1fTAPROOT_COMMITMENT_REVOKE_FINAL\x10**V\n" +
 	"\x11ChangeAddressType\x12#\n" +
 	"\x1fCHANGE_ADDRESS_TYPE_UNSPECIFIED\x10\x00\x12\x1c\n" +
-	"\x18CHANGE_ADDRESS_TYPE_P2TR\x10\x012\x81\x13\n" +
+	"\x18CHANGE_ADDRESS_TYPE_P2TR\x10\x01*\xb4\x01\n" +
+	"\x14ListUnspentSortField\x12'\n" +
+	"#LIST_UNSPENT_SORT_FIELD_UNSPECIFIED\x10\x00\x12\"\n" +
+	"\x1eLIST_UNSPENT_SORT_FIELD_AMOUNT\x10\x01\x12)\n" +
+	"%LIST_UNSPENT_SORT_FIELD_CONFIRMATIONS\x10\x02\x12$\n" +
+	" LIST_UNSPENT_SORT_FIELD_OUTPOINT\x10\x03*`\n" +
+	"\rSortDirection\x12\x1e\n" +
+	"\x1aSORT_DIRECTION_UNSPECIFIED\x10\x00\x12\x16\n" +
+	"\x12SORT_DIRECTION_ASC\x10\x01\x12\x17\n" +
+	"\x13SORT_DIRECTION_DESC\x10\x022\x81\x13\n" +
 	"\tWalletKit\x12L\n" +
 	"\vListUnspent\x12\x1d.walletrpc.ListUnspentRequest\x1a\x1e.walletrpc.ListUnspentResponse\x12L\n" +
 	"\vLeaseOutput\x12\x1d.walletrpc.LeaseOutputRequest\x1a\x1e.walletrpc.LeaseOutputResponse\x12R\n" +
@@ -5428,196 +5587,200 @@ func file_walletrpc_walletkit_proto_rawDescGZIP() []byte {
 	return file_walletrpc_walletkit_proto_rawDescData
 }
 
-var file_walletrpc_walletkit_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_walletrpc_walletkit_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
 var file_walletrpc_walletkit_proto_msgTypes = make([]protoimpl.MessageInfo, 69)
 var file_walletrpc_walletkit_proto_goTypes = []any{
 	(AddressType)(0),                          // 0: walletrpc.AddressType
 	(WitnessType)(0),                          // 1: walletrpc.WitnessType
 	(ChangeAddressType)(0),                    // 2: walletrpc.ChangeAddressType
-	(*ListUnspentRequest)(nil),                // 3: walletrpc.ListUnspentRequest
-	(*ListUnspentResponse)(nil),               // 4: walletrpc.ListUnspentResponse
-	(*LeaseOutputRequest)(nil),                // 5: walletrpc.LeaseOutputRequest
-	(*LeaseOutputResponse)(nil),               // 6: walletrpc.LeaseOutputResponse
-	(*ReleaseOutputRequest)(nil),              // 7: walletrpc.ReleaseOutputRequest
-	(*ReleaseOutputResponse)(nil),             // 8: walletrpc.ReleaseOutputResponse
-	(*KeyReq)(nil),                            // 9: walletrpc.KeyReq
-	(*AddrRequest)(nil),                       // 10: walletrpc.AddrRequest
-	(*AddrResponse)(nil),                      // 11: walletrpc.AddrResponse
-	(*Account)(nil),                           // 12: walletrpc.Account
-	(*AddressProperty)(nil),                   // 13: walletrpc.AddressProperty
-	(*AccountWithAddresses)(nil),              // 14: walletrpc.AccountWithAddresses
-	(*ListAccountsRequest)(nil),               // 15: walletrpc.ListAccountsRequest
-	(*ListAccountsResponse)(nil),              // 16: walletrpc.ListAccountsResponse
-	(*XCreateAccountRequest)(nil),             // 17: walletrpc.XCreateAccountRequest
-	(*XCreateAccountResponse)(nil),            // 18: walletrpc.XCreateAccountResponse
-	(*RequiredReserveRequest)(nil),            // 19: walletrpc.RequiredReserveRequest
-	(*RequiredReserveResponse)(nil),           // 20: walletrpc.RequiredReserveResponse
-	(*ListAddressesRequest)(nil),              // 21: walletrpc.ListAddressesRequest
-	(*ListAddressesResponse)(nil),             // 22: walletrpc.ListAddressesResponse
-	(*GetTransactionRequest)(nil),             // 23: walletrpc.GetTransactionRequest
-	(*SignMessageWithAddrRequest)(nil),        // 24: walletrpc.SignMessageWithAddrRequest
-	(*SignMessageWithAddrResponse)(nil),       // 25: walletrpc.SignMessageWithAddrResponse
-	(*VerifyMessageWithAddrRequest)(nil),      // 26: walletrpc.VerifyMessageWithAddrRequest
-	(*VerifyMessageWithAddrResponse)(nil),     // 27: walletrpc.VerifyMessageWithAddrResponse
-	(*ImportAccountRequest)(nil),              // 28: walletrpc.ImportAccountRequest
-	(*ImportAccountResponse)(nil),             // 29: walletrpc.ImportAccountResponse
-	(*ImportPublicKeyRequest)(nil),            // 30: walletrpc.ImportPublicKeyRequest
-	(*ImportPublicKeyResponse)(nil),           // 31: walletrpc.ImportPublicKeyResponse
-	(*ImportTapscriptRequest)(nil),            // 32: walletrpc.ImportTapscriptRequest
-	(*TapscriptFullTree)(nil),                 // 33: walletrpc.TapscriptFullTree
-	(*TapLeaf)(nil),                           // 34: walletrpc.TapLeaf
-	(*TapscriptPartialReveal)(nil),            // 35: walletrpc.TapscriptPartialReveal
-	(*ImportTapscriptResponse)(nil),           // 36: walletrpc.ImportTapscriptResponse
-	(*Transaction)(nil),                       // 37: walletrpc.Transaction
-	(*PublishResponse)(nil),                   // 38: walletrpc.PublishResponse
-	(*SubmitPackageRequest)(nil),              // 39: walletrpc.SubmitPackageRequest
-	(*SubmitPackageTxResult)(nil),             // 40: walletrpc.SubmitPackageTxResult
-	(*SubmitPackageResponse)(nil),             // 41: walletrpc.SubmitPackageResponse
-	(*RemoveTransactionResponse)(nil),         // 42: walletrpc.RemoveTransactionResponse
-	(*SendOutputsRequest)(nil),                // 43: walletrpc.SendOutputsRequest
-	(*SendOutputsResponse)(nil),               // 44: walletrpc.SendOutputsResponse
-	(*EstimateFeeRequest)(nil),                // 45: walletrpc.EstimateFeeRequest
-	(*EstimateFeeResponse)(nil),               // 46: walletrpc.EstimateFeeResponse
-	(*PendingSweep)(nil),                      // 47: walletrpc.PendingSweep
-	(*PendingSweepsRequest)(nil),              // 48: walletrpc.PendingSweepsRequest
-	(*PendingSweepsResponse)(nil),             // 49: walletrpc.PendingSweepsResponse
-	(*BumpFeeRequest)(nil),                    // 50: walletrpc.BumpFeeRequest
-	(*BumpFeeResponse)(nil),                   // 51: walletrpc.BumpFeeResponse
-	(*BumpForceCloseFeeRequest)(nil),          // 52: walletrpc.BumpForceCloseFeeRequest
-	(*BumpForceCloseFeeResponse)(nil),         // 53: walletrpc.BumpForceCloseFeeResponse
-	(*ListSweepsRequest)(nil),                 // 54: walletrpc.ListSweepsRequest
-	(*ListSweepsResponse)(nil),                // 55: walletrpc.ListSweepsResponse
-	(*LabelTransactionRequest)(nil),           // 56: walletrpc.LabelTransactionRequest
-	(*LabelTransactionResponse)(nil),          // 57: walletrpc.LabelTransactionResponse
-	(*FundPsbtRequest)(nil),                   // 58: walletrpc.FundPsbtRequest
-	(*FundPsbtResponse)(nil),                  // 59: walletrpc.FundPsbtResponse
-	(*TxTemplate)(nil),                        // 60: walletrpc.TxTemplate
-	(*PsbtCoinSelect)(nil),                    // 61: walletrpc.PsbtCoinSelect
-	(*UtxoLease)(nil),                         // 62: walletrpc.UtxoLease
-	(*SignPsbtRequest)(nil),                   // 63: walletrpc.SignPsbtRequest
-	(*SignPsbtResponse)(nil),                  // 64: walletrpc.SignPsbtResponse
-	(*FinalizePsbtRequest)(nil),               // 65: walletrpc.FinalizePsbtRequest
-	(*FinalizePsbtResponse)(nil),              // 66: walletrpc.FinalizePsbtResponse
-	(*ListLeasesRequest)(nil),                 // 67: walletrpc.ListLeasesRequest
-	(*ListLeasesResponse)(nil),                // 68: walletrpc.ListLeasesResponse
-	nil,                                       // 69: walletrpc.SubmitPackageResponse.TxResultsEntry
-	(*ListSweepsResponse_TransactionIDs)(nil), // 70: walletrpc.ListSweepsResponse.TransactionIDs
-	nil,                              // 71: walletrpc.TxTemplate.OutputsEntry
-	(*lnrpc.Utxo)(nil),               // 72: lnrpc.Utxo
-	(*lnrpc.OutPoint)(nil),           // 73: lnrpc.OutPoint
-	(*signrpc.TxOut)(nil),            // 74: signrpc.TxOut
-	(lnrpc.CoinSelectionStrategy)(0), // 75: lnrpc.CoinSelectionStrategy
-	(*lnrpc.ChannelPoint)(nil),       // 76: lnrpc.ChannelPoint
-	(*lnrpc.TransactionDetails)(nil), // 77: lnrpc.TransactionDetails
-	(*signrpc.KeyLocator)(nil),       // 78: signrpc.KeyLocator
-	(*signrpc.KeyDescriptor)(nil),    // 79: signrpc.KeyDescriptor
-	(*lnrpc.Transaction)(nil),        // 80: lnrpc.Transaction
+	(ListUnspentSortField)(0),                 // 3: walletrpc.ListUnspentSortField
+	(SortDirection)(0),                        // 4: walletrpc.SortDirection
+	(*ListUnspentRequest)(nil),                // 5: walletrpc.ListUnspentRequest
+	(*ListUnspentResponse)(nil),               // 6: walletrpc.ListUnspentResponse
+	(*LeaseOutputRequest)(nil),                // 7: walletrpc.LeaseOutputRequest
+	(*LeaseOutputResponse)(nil),               // 8: walletrpc.LeaseOutputResponse
+	(*ReleaseOutputRequest)(nil),              // 9: walletrpc.ReleaseOutputRequest
+	(*ReleaseOutputResponse)(nil),             // 10: walletrpc.ReleaseOutputResponse
+	(*KeyReq)(nil),                            // 11: walletrpc.KeyReq
+	(*AddrRequest)(nil),                       // 12: walletrpc.AddrRequest
+	(*AddrResponse)(nil),                      // 13: walletrpc.AddrResponse
+	(*Account)(nil),                           // 14: walletrpc.Account
+	(*AddressProperty)(nil),                   // 15: walletrpc.AddressProperty
+	(*AccountWithAddresses)(nil),              // 16: walletrpc.AccountWithAddresses
+	(*ListAccountsRequest)(nil),               // 17: walletrpc.ListAccountsRequest
+	(*ListAccountsResponse)(nil),              // 18: walletrpc.ListAccountsResponse
+	(*XCreateAccountRequest)(nil),             // 19: walletrpc.XCreateAccountRequest
+	(*XCreateAccountResponse)(nil),            // 20: walletrpc.XCreateAccountResponse
+	(*RequiredReserveRequest)(nil),            // 21: walletrpc.RequiredReserveRequest
+	(*RequiredReserveResponse)(nil),           // 22: walletrpc.RequiredReserveResponse
+	(*ListAddressesRequest)(nil),              // 23: walletrpc.ListAddressesRequest
+	(*ListAddressesResponse)(nil),             // 24: walletrpc.ListAddressesResponse
+	(*GetTransactionRequest)(nil),             // 25: walletrpc.GetTransactionRequest
+	(*SignMessageWithAddrRequest)(nil),        // 26: walletrpc.SignMessageWithAddrRequest
+	(*SignMessageWithAddrResponse)(nil),       // 27: walletrpc.SignMessageWithAddrResponse
+	(*VerifyMessageWithAddrRequest)(nil),      // 28: walletrpc.VerifyMessageWithAddrRequest
+	(*VerifyMessageWithAddrResponse)(nil),     // 29: walletrpc.VerifyMessageWithAddrResponse
+	(*ImportAccountRequest)(nil),              // 30: walletrpc.ImportAccountRequest
+	(*ImportAccountResponse)(nil),             // 31: walletrpc.ImportAccountResponse
+	(*ImportPublicKeyRequest)(nil),            // 32: walletrpc.ImportPublicKeyRequest
+	(*ImportPublicKeyResponse)(nil),           // 33: walletrpc.ImportPublicKeyResponse
+	(*ImportTapscriptRequest)(nil),            // 34: walletrpc.ImportTapscriptRequest
+	(*TapscriptFullTree)(nil),                 // 35: walletrpc.TapscriptFullTree
+	(*TapLeaf)(nil),                           // 36: walletrpc.TapLeaf
+	(*TapscriptPartialReveal)(nil),            // 37: walletrpc.TapscriptPartialReveal
+	(*ImportTapscriptResponse)(nil),           // 38: walletrpc.ImportTapscriptResponse
+	(*Transaction)(nil),                       // 39: walletrpc.Transaction
+	(*PublishResponse)(nil),                   // 40: walletrpc.PublishResponse
+	(*SubmitPackageRequest)(nil),              // 41: walletrpc.SubmitPackageRequest
+	(*SubmitPackageTxResult)(nil),             // 42: walletrpc.SubmitPackageTxResult
+	(*SubmitPackageResponse)(nil),             // 43: walletrpc.SubmitPackageResponse
+	(*RemoveTransactionResponse)(nil),         // 44: walletrpc.RemoveTransactionResponse
+	(*SendOutputsRequest)(nil),                // 45: walletrpc.SendOutputsRequest
+	(*SendOutputsResponse)(nil),               // 46: walletrpc.SendOutputsResponse
+	(*EstimateFeeRequest)(nil),                // 47: walletrpc.EstimateFeeRequest
+	(*EstimateFeeResponse)(nil),               // 48: walletrpc.EstimateFeeResponse
+	(*PendingSweep)(nil),                      // 49: walletrpc.PendingSweep
+	(*PendingSweepsRequest)(nil),              // 50: walletrpc.PendingSweepsRequest
+	(*PendingSweepsResponse)(nil),             // 51: walletrpc.PendingSweepsResponse
+	(*BumpFeeRequest)(nil),                    // 52: walletrpc.BumpFeeRequest
+	(*BumpFeeResponse)(nil),                   // 53: walletrpc.BumpFeeResponse
+	(*BumpForceCloseFeeRequest)(nil),          // 54: walletrpc.BumpForceCloseFeeRequest
+	(*BumpForceCloseFeeResponse)(nil),         // 55: walletrpc.BumpForceCloseFeeResponse
+	(*ListSweepsRequest)(nil),                 // 56: walletrpc.ListSweepsRequest
+	(*ListSweepsResponse)(nil),                // 57: walletrpc.ListSweepsResponse
+	(*LabelTransactionRequest)(nil),           // 58: walletrpc.LabelTransactionRequest
+	(*LabelTransactionResponse)(nil),          // 59: walletrpc.LabelTransactionResponse
+	(*FundPsbtRequest)(nil),                   // 60: walletrpc.FundPsbtRequest
+	(*FundPsbtResponse)(nil),                  // 61: walletrpc.FundPsbtResponse
+	(*TxTemplate)(nil),                        // 62: walletrpc.TxTemplate
+	(*PsbtCoinSelect)(nil),                    // 63: walletrpc.PsbtCoinSelect
+	(*UtxoLease)(nil),                         // 64: walletrpc.UtxoLease
+	(*SignPsbtRequest)(nil),                   // 65: walletrpc.SignPsbtRequest
+	(*SignPsbtResponse)(nil),                  // 66: walletrpc.SignPsbtResponse
+	(*FinalizePsbtRequest)(nil),               // 67: walletrpc.FinalizePsbtRequest
+	(*FinalizePsbtResponse)(nil),              // 68: walletrpc.FinalizePsbtResponse
+	(*ListLeasesRequest)(nil),                 // 69: walletrpc.ListLeasesRequest
+	(*ListLeasesResponse)(nil),                // 70: walletrpc.ListLeasesResponse
+	nil,                                       // 71: walletrpc.SubmitPackageResponse.TxResultsEntry
+	(*ListSweepsResponse_TransactionIDs)(nil), // 72: walletrpc.ListSweepsResponse.TransactionIDs
+	nil,                              // 73: walletrpc.TxTemplate.OutputsEntry
+	(*lnrpc.Utxo)(nil),               // 74: lnrpc.Utxo
+	(*lnrpc.OutPoint)(nil),           // 75: lnrpc.OutPoint
+	(*signrpc.TxOut)(nil),            // 76: signrpc.TxOut
+	(lnrpc.CoinSelectionStrategy)(0), // 77: lnrpc.CoinSelectionStrategy
+	(*lnrpc.ChannelPoint)(nil),       // 78: lnrpc.ChannelPoint
+	(*lnrpc.TransactionDetails)(nil), // 79: lnrpc.TransactionDetails
+	(*signrpc.KeyLocator)(nil),       // 80: signrpc.KeyLocator
+	(*signrpc.KeyDescriptor)(nil),    // 81: signrpc.KeyDescriptor
+	(*lnrpc.Transaction)(nil),        // 82: lnrpc.Transaction
 }
 var file_walletrpc_walletkit_proto_depIdxs = []int32{
-	72, // 0: walletrpc.ListUnspentResponse.utxos:type_name -> lnrpc.Utxo
-	73, // 1: walletrpc.LeaseOutputRequest.outpoint:type_name -> lnrpc.OutPoint
-	73, // 2: walletrpc.ReleaseOutputRequest.outpoint:type_name -> lnrpc.OutPoint
-	0,  // 3: walletrpc.AddrRequest.type:type_name -> walletrpc.AddressType
-	0,  // 4: walletrpc.Account.address_type:type_name -> walletrpc.AddressType
-	0,  // 5: walletrpc.AccountWithAddresses.address_type:type_name -> walletrpc.AddressType
-	13, // 6: walletrpc.AccountWithAddresses.addresses:type_name -> walletrpc.AddressProperty
-	0,  // 7: walletrpc.ListAccountsRequest.address_type:type_name -> walletrpc.AddressType
-	12, // 8: walletrpc.ListAccountsResponse.accounts:type_name -> walletrpc.Account
-	0,  // 9: walletrpc.XCreateAccountRequest.address_type:type_name -> walletrpc.AddressType
-	12, // 10: walletrpc.XCreateAccountResponse.account:type_name -> walletrpc.Account
-	14, // 11: walletrpc.ListAddressesResponse.account_with_addresses:type_name -> walletrpc.AccountWithAddresses
-	0,  // 12: walletrpc.ImportAccountRequest.address_type:type_name -> walletrpc.AddressType
-	12, // 13: walletrpc.ImportAccountResponse.account:type_name -> walletrpc.Account
-	0,  // 14: walletrpc.ImportPublicKeyRequest.address_type:type_name -> walletrpc.AddressType
-	33, // 15: walletrpc.ImportTapscriptRequest.full_tree:type_name -> walletrpc.TapscriptFullTree
-	35, // 16: walletrpc.ImportTapscriptRequest.partial_reveal:type_name -> walletrpc.TapscriptPartialReveal
-	34, // 17: walletrpc.TapscriptFullTree.all_leaves:type_name -> walletrpc.TapLeaf
-	34, // 18: walletrpc.TapscriptPartialReveal.revealed_leaf:type_name -> walletrpc.TapLeaf
-	69, // 19: walletrpc.SubmitPackageResponse.tx_results:type_name -> walletrpc.SubmitPackageResponse.TxResultsEntry
-	74, // 20: walletrpc.SendOutputsRequest.outputs:type_name -> signrpc.TxOut
-	75, // 21: walletrpc.SendOutputsRequest.coin_selection_strategy:type_name -> lnrpc.CoinSelectionStrategy
-	73, // 22: walletrpc.PendingSweep.outpoint:type_name -> lnrpc.OutPoint
-	1,  // 23: walletrpc.PendingSweep.witness_type:type_name -> walletrpc.WitnessType
-	47, // 24: walletrpc.PendingSweepsResponse.pending_sweeps:type_name -> walletrpc.PendingSweep
-	73, // 25: walletrpc.BumpFeeRequest.outpoint:type_name -> lnrpc.OutPoint
-	76, // 26: walletrpc.BumpForceCloseFeeRequest.chan_point:type_name -> lnrpc.ChannelPoint
-	77, // 27: walletrpc.ListSweepsResponse.transaction_details:type_name -> lnrpc.TransactionDetails
-	70, // 28: walletrpc.ListSweepsResponse.transaction_ids:type_name -> walletrpc.ListSweepsResponse.TransactionIDs
-	60, // 29: walletrpc.FundPsbtRequest.raw:type_name -> walletrpc.TxTemplate
-	61, // 30: walletrpc.FundPsbtRequest.coin_select:type_name -> walletrpc.PsbtCoinSelect
-	2,  // 31: walletrpc.FundPsbtRequest.change_type:type_name -> walletrpc.ChangeAddressType
-	75, // 32: walletrpc.FundPsbtRequest.coin_selection_strategy:type_name -> lnrpc.CoinSelectionStrategy
-	62, // 33: walletrpc.FundPsbtResponse.locked_utxos:type_name -> walletrpc.UtxoLease
-	73, // 34: walletrpc.TxTemplate.inputs:type_name -> lnrpc.OutPoint
-	71, // 35: walletrpc.TxTemplate.outputs:type_name -> walletrpc.TxTemplate.OutputsEntry
-	73, // 36: walletrpc.UtxoLease.outpoint:type_name -> lnrpc.OutPoint
-	62, // 37: walletrpc.ListLeasesResponse.locked_utxos:type_name -> walletrpc.UtxoLease
-	40, // 38: walletrpc.SubmitPackageResponse.TxResultsEntry.value:type_name -> walletrpc.SubmitPackageTxResult
-	3,  // 39: walletrpc.WalletKit.ListUnspent:input_type -> walletrpc.ListUnspentRequest
-	5,  // 40: walletrpc.WalletKit.LeaseOutput:input_type -> walletrpc.LeaseOutputRequest
-	7,  // 41: walletrpc.WalletKit.ReleaseOutput:input_type -> walletrpc.ReleaseOutputRequest
-	67, // 42: walletrpc.WalletKit.ListLeases:input_type -> walletrpc.ListLeasesRequest
-	9,  // 43: walletrpc.WalletKit.DeriveNextKey:input_type -> walletrpc.KeyReq
-	78, // 44: walletrpc.WalletKit.DeriveKey:input_type -> signrpc.KeyLocator
-	10, // 45: walletrpc.WalletKit.NextAddr:input_type -> walletrpc.AddrRequest
-	23, // 46: walletrpc.WalletKit.GetTransaction:input_type -> walletrpc.GetTransactionRequest
-	15, // 47: walletrpc.WalletKit.ListAccounts:input_type -> walletrpc.ListAccountsRequest
-	17, // 48: walletrpc.WalletKit.XCreateAccount:input_type -> walletrpc.XCreateAccountRequest
-	19, // 49: walletrpc.WalletKit.RequiredReserve:input_type -> walletrpc.RequiredReserveRequest
-	21, // 50: walletrpc.WalletKit.ListAddresses:input_type -> walletrpc.ListAddressesRequest
-	24, // 51: walletrpc.WalletKit.SignMessageWithAddr:input_type -> walletrpc.SignMessageWithAddrRequest
-	26, // 52: walletrpc.WalletKit.VerifyMessageWithAddr:input_type -> walletrpc.VerifyMessageWithAddrRequest
-	28, // 53: walletrpc.WalletKit.ImportAccount:input_type -> walletrpc.ImportAccountRequest
-	30, // 54: walletrpc.WalletKit.ImportPublicKey:input_type -> walletrpc.ImportPublicKeyRequest
-	32, // 55: walletrpc.WalletKit.ImportTapscript:input_type -> walletrpc.ImportTapscriptRequest
-	37, // 56: walletrpc.WalletKit.PublishTransaction:input_type -> walletrpc.Transaction
-	39, // 57: walletrpc.WalletKit.SubmitPackage:input_type -> walletrpc.SubmitPackageRequest
-	23, // 58: walletrpc.WalletKit.RemoveTransaction:input_type -> walletrpc.GetTransactionRequest
-	43, // 59: walletrpc.WalletKit.SendOutputs:input_type -> walletrpc.SendOutputsRequest
-	45, // 60: walletrpc.WalletKit.EstimateFee:input_type -> walletrpc.EstimateFeeRequest
-	48, // 61: walletrpc.WalletKit.PendingSweeps:input_type -> walletrpc.PendingSweepsRequest
-	50, // 62: walletrpc.WalletKit.BumpFee:input_type -> walletrpc.BumpFeeRequest
-	52, // 63: walletrpc.WalletKit.BumpForceCloseFee:input_type -> walletrpc.BumpForceCloseFeeRequest
-	54, // 64: walletrpc.WalletKit.ListSweeps:input_type -> walletrpc.ListSweepsRequest
-	56, // 65: walletrpc.WalletKit.LabelTransaction:input_type -> walletrpc.LabelTransactionRequest
-	58, // 66: walletrpc.WalletKit.FundPsbt:input_type -> walletrpc.FundPsbtRequest
-	63, // 67: walletrpc.WalletKit.SignPsbt:input_type -> walletrpc.SignPsbtRequest
-	65, // 68: walletrpc.WalletKit.FinalizePsbt:input_type -> walletrpc.FinalizePsbtRequest
-	4,  // 69: walletrpc.WalletKit.ListUnspent:output_type -> walletrpc.ListUnspentResponse
-	6,  // 70: walletrpc.WalletKit.LeaseOutput:output_type -> walletrpc.LeaseOutputResponse
-	8,  // 71: walletrpc.WalletKit.ReleaseOutput:output_type -> walletrpc.ReleaseOutputResponse
-	68, // 72: walletrpc.WalletKit.ListLeases:output_type -> walletrpc.ListLeasesResponse
-	79, // 73: walletrpc.WalletKit.DeriveNextKey:output_type -> signrpc.KeyDescriptor
-	79, // 74: walletrpc.WalletKit.DeriveKey:output_type -> signrpc.KeyDescriptor
-	11, // 75: walletrpc.WalletKit.NextAddr:output_type -> walletrpc.AddrResponse
-	80, // 76: walletrpc.WalletKit.GetTransaction:output_type -> lnrpc.Transaction
-	16, // 77: walletrpc.WalletKit.ListAccounts:output_type -> walletrpc.ListAccountsResponse
-	18, // 78: walletrpc.WalletKit.XCreateAccount:output_type -> walletrpc.XCreateAccountResponse
-	20, // 79: walletrpc.WalletKit.RequiredReserve:output_type -> walletrpc.RequiredReserveResponse
-	22, // 80: walletrpc.WalletKit.ListAddresses:output_type -> walletrpc.ListAddressesResponse
-	25, // 81: walletrpc.WalletKit.SignMessageWithAddr:output_type -> walletrpc.SignMessageWithAddrResponse
-	27, // 82: walletrpc.WalletKit.VerifyMessageWithAddr:output_type -> walletrpc.VerifyMessageWithAddrResponse
-	29, // 83: walletrpc.WalletKit.ImportAccount:output_type -> walletrpc.ImportAccountResponse
-	31, // 84: walletrpc.WalletKit.ImportPublicKey:output_type -> walletrpc.ImportPublicKeyResponse
-	36, // 85: walletrpc.WalletKit.ImportTapscript:output_type -> walletrpc.ImportTapscriptResponse
-	38, // 86: walletrpc.WalletKit.PublishTransaction:output_type -> walletrpc.PublishResponse
-	41, // 87: walletrpc.WalletKit.SubmitPackage:output_type -> walletrpc.SubmitPackageResponse
-	42, // 88: walletrpc.WalletKit.RemoveTransaction:output_type -> walletrpc.RemoveTransactionResponse
-	44, // 89: walletrpc.WalletKit.SendOutputs:output_type -> walletrpc.SendOutputsResponse
-	46, // 90: walletrpc.WalletKit.EstimateFee:output_type -> walletrpc.EstimateFeeResponse
-	49, // 91: walletrpc.WalletKit.PendingSweeps:output_type -> walletrpc.PendingSweepsResponse
-	51, // 92: walletrpc.WalletKit.BumpFee:output_type -> walletrpc.BumpFeeResponse
-	53, // 93: walletrpc.WalletKit.BumpForceCloseFee:output_type -> walletrpc.BumpForceCloseFeeResponse
-	55, // 94: walletrpc.WalletKit.ListSweeps:output_type -> walletrpc.ListSweepsResponse
-	57, // 95: walletrpc.WalletKit.LabelTransaction:output_type -> walletrpc.LabelTransactionResponse
-	59, // 96: walletrpc.WalletKit.FundPsbt:output_type -> walletrpc.FundPsbtResponse
-	64, // 97: walletrpc.WalletKit.SignPsbt:output_type -> walletrpc.SignPsbtResponse
-	66, // 98: walletrpc.WalletKit.FinalizePsbt:output_type -> walletrpc.FinalizePsbtResponse
-	69, // [69:99] is the sub-list for method output_type
-	39, // [39:69] is the sub-list for method input_type
-	39, // [39:39] is the sub-list for extension type_name
-	39, // [39:39] is the sub-list for extension extendee
-	0,  // [0:39] is the sub-list for field type_name
+	3,  // 0: walletrpc.ListUnspentRequest.sort_field:type_name -> walletrpc.ListUnspentSortField
+	4,  // 1: walletrpc.ListUnspentRequest.sort_direction:type_name -> walletrpc.SortDirection
+	74, // 2: walletrpc.ListUnspentResponse.utxos:type_name -> lnrpc.Utxo
+	75, // 3: walletrpc.LeaseOutputRequest.outpoint:type_name -> lnrpc.OutPoint
+	75, // 4: walletrpc.ReleaseOutputRequest.outpoint:type_name -> lnrpc.OutPoint
+	0,  // 5: walletrpc.AddrRequest.type:type_name -> walletrpc.AddressType
+	0,  // 6: walletrpc.Account.address_type:type_name -> walletrpc.AddressType
+	0,  // 7: walletrpc.AccountWithAddresses.address_type:type_name -> walletrpc.AddressType
+	15, // 8: walletrpc.AccountWithAddresses.addresses:type_name -> walletrpc.AddressProperty
+	0,  // 9: walletrpc.ListAccountsRequest.address_type:type_name -> walletrpc.AddressType
+	14, // 10: walletrpc.ListAccountsResponse.accounts:type_name -> walletrpc.Account
+	0,  // 11: walletrpc.XCreateAccountRequest.address_type:type_name -> walletrpc.AddressType
+	14, // 12: walletrpc.XCreateAccountResponse.account:type_name -> walletrpc.Account
+	16, // 13: walletrpc.ListAddressesResponse.account_with_addresses:type_name -> walletrpc.AccountWithAddresses
+	0,  // 14: walletrpc.ImportAccountRequest.address_type:type_name -> walletrpc.AddressType
+	14, // 15: walletrpc.ImportAccountResponse.account:type_name -> walletrpc.Account
+	0,  // 16: walletrpc.ImportPublicKeyRequest.address_type:type_name -> walletrpc.AddressType
+	35, // 17: walletrpc.ImportTapscriptRequest.full_tree:type_name -> walletrpc.TapscriptFullTree
+	37, // 18: walletrpc.ImportTapscriptRequest.partial_reveal:type_name -> walletrpc.TapscriptPartialReveal
+	36, // 19: walletrpc.TapscriptFullTree.all_leaves:type_name -> walletrpc.TapLeaf
+	36, // 20: walletrpc.TapscriptPartialReveal.revealed_leaf:type_name -> walletrpc.TapLeaf
+	71, // 21: walletrpc.SubmitPackageResponse.tx_results:type_name -> walletrpc.SubmitPackageResponse.TxResultsEntry
+	76, // 22: walletrpc.SendOutputsRequest.outputs:type_name -> signrpc.TxOut
+	77, // 23: walletrpc.SendOutputsRequest.coin_selection_strategy:type_name -> lnrpc.CoinSelectionStrategy
+	75, // 24: walletrpc.PendingSweep.outpoint:type_name -> lnrpc.OutPoint
+	1,  // 25: walletrpc.PendingSweep.witness_type:type_name -> walletrpc.WitnessType
+	49, // 26: walletrpc.PendingSweepsResponse.pending_sweeps:type_name -> walletrpc.PendingSweep
+	75, // 27: walletrpc.BumpFeeRequest.outpoint:type_name -> lnrpc.OutPoint
+	78, // 28: walletrpc.BumpForceCloseFeeRequest.chan_point:type_name -> lnrpc.ChannelPoint
+	79, // 29: walletrpc.ListSweepsResponse.transaction_details:type_name -> lnrpc.TransactionDetails
+	72, // 30: walletrpc.ListSweepsResponse.transaction_ids:type_name -> walletrpc.ListSweepsResponse.TransactionIDs
+	62, // 31: walletrpc.FundPsbtRequest.raw:type_name -> walletrpc.TxTemplate
+	63, // 32: walletrpc.FundPsbtRequest.coin_select:type_name -> walletrpc.PsbtCoinSelect
+	2,  // 33: walletrpc.FundPsbtRequest.change_type:type_name -> walletrpc.ChangeAddressType
+	77, // 34: walletrpc.FundPsbtRequest.coin_selection_strategy:type_name -> lnrpc.CoinSelectionStrategy
+	64, // 35: walletrpc.FundPsbtResponse.locked_utxos:type_name -> walletrpc.UtxoLease
+	75, // 36: walletrpc.TxTemplate.inputs:type_name -> lnrpc.OutPoint
+	73, // 37: walletrpc.TxTemplate.outputs:type_name -> walletrpc.TxTemplate.OutputsEntry
+	75, // 38: walletrpc.UtxoLease.outpoint:type_name -> lnrpc.OutPoint
+	64, // 39: walletrpc.ListLeasesResponse.locked_utxos:type_name -> walletrpc.UtxoLease
+	42, // 40: walletrpc.SubmitPackageResponse.TxResultsEntry.value:type_name -> walletrpc.SubmitPackageTxResult
+	5,  // 41: walletrpc.WalletKit.ListUnspent:input_type -> walletrpc.ListUnspentRequest
+	7,  // 42: walletrpc.WalletKit.LeaseOutput:input_type -> walletrpc.LeaseOutputRequest
+	9,  // 43: walletrpc.WalletKit.ReleaseOutput:input_type -> walletrpc.ReleaseOutputRequest
+	69, // 44: walletrpc.WalletKit.ListLeases:input_type -> walletrpc.ListLeasesRequest
+	11, // 45: walletrpc.WalletKit.DeriveNextKey:input_type -> walletrpc.KeyReq
+	80, // 46: walletrpc.WalletKit.DeriveKey:input_type -> signrpc.KeyLocator
+	12, // 47: walletrpc.WalletKit.NextAddr:input_type -> walletrpc.AddrRequest
+	25, // 48: walletrpc.WalletKit.GetTransaction:input_type -> walletrpc.GetTransactionRequest
+	17, // 49: walletrpc.WalletKit.ListAccounts:input_type -> walletrpc.ListAccountsRequest
+	19, // 50: walletrpc.WalletKit.XCreateAccount:input_type -> walletrpc.XCreateAccountRequest
+	21, // 51: walletrpc.WalletKit.RequiredReserve:input_type -> walletrpc.RequiredReserveRequest
+	23, // 52: walletrpc.WalletKit.ListAddresses:input_type -> walletrpc.ListAddressesRequest
+	26, // 53: walletrpc.WalletKit.SignMessageWithAddr:input_type -> walletrpc.SignMessageWithAddrRequest
+	28, // 54: walletrpc.WalletKit.VerifyMessageWithAddr:input_type -> walletrpc.VerifyMessageWithAddrRequest
+	30, // 55: walletrpc.WalletKit.ImportAccount:input_type -> walletrpc.ImportAccountRequest
+	32, // 56: walletrpc.WalletKit.ImportPublicKey:input_type -> walletrpc.ImportPublicKeyRequest
+	34, // 57: walletrpc.WalletKit.ImportTapscript:input_type -> walletrpc.ImportTapscriptRequest
+	39, // 58: walletrpc.WalletKit.PublishTransaction:input_type -> walletrpc.Transaction
+	41, // 59: walletrpc.WalletKit.SubmitPackage:input_type -> walletrpc.SubmitPackageRequest
+	25, // 60: walletrpc.WalletKit.RemoveTransaction:input_type -> walletrpc.GetTransactionRequest
+	45, // 61: walletrpc.WalletKit.SendOutputs:input_type -> walletrpc.SendOutputsRequest
+	47, // 62: walletrpc.WalletKit.EstimateFee:input_type -> walletrpc.EstimateFeeRequest
+	50, // 63: walletrpc.WalletKit.PendingSweeps:input_type -> walletrpc.PendingSweepsRequest
+	52, // 64: walletrpc.WalletKit.BumpFee:input_type -> walletrpc.BumpFeeRequest
+	54, // 65: walletrpc.WalletKit.BumpForceCloseFee:input_type -> walletrpc.BumpForceCloseFeeRequest
+	56, // 66: walletrpc.WalletKit.ListSweeps:input_type -> walletrpc.ListSweepsRequest
+	58, // 67: walletrpc.WalletKit.LabelTransaction:input_type -> walletrpc.LabelTransactionRequest
+	60, // 68: walletrpc.WalletKit.FundPsbt:input_type -> walletrpc.FundPsbtRequest
+	65, // 69: walletrpc.WalletKit.SignPsbt:input_type -> walletrpc.SignPsbtRequest
+	67, // 70: walletrpc.WalletKit.FinalizePsbt:input_type -> walletrpc.FinalizePsbtRequest
+	6,  // 71: walletrpc.WalletKit.ListUnspent:output_type -> walletrpc.ListUnspentResponse
+	8,  // 72: walletrpc.WalletKit.LeaseOutput:output_type -> walletrpc.LeaseOutputResponse
+	10, // 73: walletrpc.WalletKit.ReleaseOutput:output_type -> walletrpc.ReleaseOutputResponse
+	70, // 74: walletrpc.WalletKit.ListLeases:output_type -> walletrpc.ListLeasesResponse
+	81, // 75: walletrpc.WalletKit.DeriveNextKey:output_type -> signrpc.KeyDescriptor
+	81, // 76: walletrpc.WalletKit.DeriveKey:output_type -> signrpc.KeyDescriptor
+	13, // 77: walletrpc.WalletKit.NextAddr:output_type -> walletrpc.AddrResponse
+	82, // 78: walletrpc.WalletKit.GetTransaction:output_type -> lnrpc.Transaction
+	18, // 79: walletrpc.WalletKit.ListAccounts:output_type -> walletrpc.ListAccountsResponse
+	20, // 80: walletrpc.WalletKit.XCreateAccount:output_type -> walletrpc.XCreateAccountResponse
+	22, // 81: walletrpc.WalletKit.RequiredReserve:output_type -> walletrpc.RequiredReserveResponse
+	24, // 82: walletrpc.WalletKit.ListAddresses:output_type -> walletrpc.ListAddressesResponse
+	27, // 83: walletrpc.WalletKit.SignMessageWithAddr:output_type -> walletrpc.SignMessageWithAddrResponse
+	29, // 84: walletrpc.WalletKit.VerifyMessageWithAddr:output_type -> walletrpc.VerifyMessageWithAddrResponse
+	31, // 85: walletrpc.WalletKit.ImportAccount:output_type -> walletrpc.ImportAccountResponse
+	33, // 86: walletrpc.WalletKit.ImportPublicKey:output_type -> walletrpc.ImportPublicKeyResponse
+	38, // 87: walletrpc.WalletKit.ImportTapscript:output_type -> walletrpc.ImportTapscriptResponse
+	40, // 88: walletrpc.WalletKit.PublishTransaction:output_type -> walletrpc.PublishResponse
+	43, // 89: walletrpc.WalletKit.SubmitPackage:output_type -> walletrpc.SubmitPackageResponse
+	44, // 90: walletrpc.WalletKit.RemoveTransaction:output_type -> walletrpc.RemoveTransactionResponse
+	46, // 91: walletrpc.WalletKit.SendOutputs:output_type -> walletrpc.SendOutputsResponse
+	48, // 92: walletrpc.WalletKit.EstimateFee:output_type -> walletrpc.EstimateFeeResponse
+	51, // 93: walletrpc.WalletKit.PendingSweeps:output_type -> walletrpc.PendingSweepsResponse
+	53, // 94: walletrpc.WalletKit.BumpFee:output_type -> walletrpc.BumpFeeResponse
+	55, // 95: walletrpc.WalletKit.BumpForceCloseFee:output_type -> walletrpc.BumpForceCloseFeeResponse
+	57, // 96: walletrpc.WalletKit.ListSweeps:output_type -> walletrpc.ListSweepsResponse
+	59, // 97: walletrpc.WalletKit.LabelTransaction:output_type -> walletrpc.LabelTransactionResponse
+	61, // 98: walletrpc.WalletKit.FundPsbt:output_type -> walletrpc.FundPsbtResponse
+	66, // 99: walletrpc.WalletKit.SignPsbt:output_type -> walletrpc.SignPsbtResponse
+	68, // 100: walletrpc.WalletKit.FinalizePsbt:output_type -> walletrpc.FinalizePsbtResponse
+	71, // [71:101] is the sub-list for method output_type
+	41, // [41:71] is the sub-list for method input_type
+	41, // [41:41] is the sub-list for extension type_name
+	41, // [41:41] is the sub-list for extension extendee
+	0,  // [0:41] is the sub-list for field type_name
 }
 
 func init() { file_walletrpc_walletkit_proto_init() }
@@ -5653,7 +5816,7 @@ func file_walletrpc_walletkit_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_walletrpc_walletkit_proto_rawDesc), len(file_walletrpc_walletkit_proto_rawDesc)),
-			NumEnums:      3,
+			NumEnums:      5,
 			NumMessages:   69,
 			NumExtensions: 0,
 			NumServices:   1,

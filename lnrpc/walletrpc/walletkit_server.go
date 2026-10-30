@@ -5,6 +5,7 @@ package walletrpc
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/base64"
 	"encoding/binary"
@@ -443,6 +444,13 @@ func (w *WalletKit) ListUnspent(ctx context.Context,
 		return nil, err
 	}
 
+	// Validate the optional sorting arguments before hitting the wallet.
+	if err := validateListUnspentSort(
+		req.SortField, req.SortDirection,
+	); err != nil {
+		return nil, err
+	}
+
 	// With our arguments validated, we'll query the internal wallet for
 	// the set of UTXOs that match our query.
 	//
@@ -461,6 +469,16 @@ func (w *WalletKit) ListUnspent(ctx context.Context,
 		return nil, err
 	}
 
+	// The sorting is only applied after the confirmation, account and
+	// unconfirmed_only filters have been applied by the wallet. It only
+	// reorders the response: it never locks, spends or modifies any of
+	// the outputs.
+	if req.SortField !=
+		ListUnspentSortField_LIST_UNSPENT_SORT_FIELD_UNSPECIFIED {
+
+		sortUtxos(utxos, req.SortField, req.SortDirection)
+	}
+
 	rpcUtxos, err := lnrpc.MarshalUtxos(utxos, w.cfg.ChainParams)
 	if err != nil {
 		return nil, err
@@ -469,6 +487,104 @@ func (w *WalletKit) ListUnspent(ctx context.Context,
 	return &ListUnspentResponse{
 		Utxos: rpcUtxos,
 	}, nil
+}
+
+// validateListUnspentSort validates the sort_field and sort_direction
+// parameters of a ListUnspent request. A sort direction without a sort field
+// is rejected, as are unknown enum values.
+func validateListUnspentSort(sortField ListUnspentSortField,
+	sortDirection SortDirection) error {
+
+	switch sortField {
+	case ListUnspentSortField_LIST_UNSPENT_SORT_FIELD_UNSPECIFIED,
+		ListUnspentSortField_LIST_UNSPENT_SORT_FIELD_AMOUNT,
+		ListUnspentSortField_LIST_UNSPENT_SORT_FIELD_CONFIRMATIONS,
+		ListUnspentSortField_LIST_UNSPENT_SORT_FIELD_OUTPOINT:
+
+	default:
+		return fmt.Errorf("unknown sort_field: %v", sortField)
+	}
+
+	switch sortDirection {
+	case SortDirection_SORT_DIRECTION_UNSPECIFIED,
+		SortDirection_SORT_DIRECTION_ASC,
+		SortDirection_SORT_DIRECTION_DESC:
+
+	default:
+		return fmt.Errorf("unknown sort_direction: %v", sortDirection)
+	}
+
+	// A direction only makes sense together with a field to sort by.
+	if sortField ==
+		ListUnspentSortField_LIST_UNSPENT_SORT_FIELD_UNSPECIFIED &&
+		sortDirection != SortDirection_SORT_DIRECTION_UNSPECIFIED {
+
+		return fmt.Errorf("sort_direction can only be set in " +
+			"combination with sort_field")
+	}
+
+	return nil
+}
+
+// sortUtxos orders the given utxos by the requested sort field and
+// direction. When two utxos compare as equal on the amount or confirmations
+// sort field, the raw bytes of the outpoint transaction ID followed by the
+// output index are used as an ascending tie breaker, independent of the
+// requested direction, so the order of an identical result set does not
+// depend on the order returned by the underlying wallet. An unspecified
+// direction is treated as ascending.
+func sortUtxos(utxos []*lnwallet.Utxo, sortField ListUnspentSortField,
+	sortDirection SortDirection) {
+
+	descending := sortDirection == SortDirection_SORT_DIRECTION_DESC
+
+	// compareOutPoint returns -1, 0 or 1 by comparing the raw bytes of
+	// the outpoint's transaction ID and then its output index.
+	compareOutPoint := func(a, b *lnwallet.Utxo) int {
+		if c := bytes.Compare(a.Hash[:], b.Hash[:]); c != 0 {
+			return c
+		}
+
+		return cmp.Compare(a.Index, b.Index)
+	}
+
+	sort.Slice(utxos, func(i, j int) bool {
+		a, b := utxos[i], utxos[j]
+
+		// When sorting by outpoint, the outpoint is the primary
+		// key, so the requested direction applies to it directly.
+		if sortField ==
+			ListUnspentSortField_LIST_UNSPENT_SORT_FIELD_OUTPOINT {
+
+			c := compareOutPoint(a, b)
+			if descending {
+				return c > 0
+			}
+
+			return c < 0
+		}
+
+		var primary int
+		switch sortField {
+		case ListUnspentSortField_LIST_UNSPENT_SORT_FIELD_AMOUNT:
+			primary = cmp.Compare(int64(a.Value), int64(b.Value))
+
+		case ListUnspentSortField_LIST_UNSPENT_SORT_FIELD_CONFIRMATIONS:
+			primary = cmp.Compare(a.Confirmations, b.Confirmations)
+		}
+
+		// Equal primary keys are always broken by the outpoint in
+		// ascending order, independent of the requested direction.
+		if primary == 0 {
+			return compareOutPoint(a, b) < 0
+		}
+
+		if descending {
+			return primary > 0
+		}
+
+		return primary < 0
+	})
 }
 
 // LeaseOutput locks an output to the given ID, preventing it from being
