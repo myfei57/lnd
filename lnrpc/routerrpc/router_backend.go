@@ -177,6 +177,15 @@ type MissionControl interface {
 	// state and actual probability estimates.
 	GetHistorySnapshot() *routing.MissionControlSnapshot
 
+	// QueryHistoryPage returns a single page of node pair history from a
+	// fixed, paginated snapshot. If pageToken is empty, a new snapshot is
+	// created and its first page is returned for pageSize between 1 and
+	// 1000. If pageToken is set, the next page of the existing snapshot is
+	// returned; pageSize may be zero or must match the snapshot's page
+	// size. The opaque token of the last page is empty.
+	QueryHistoryPage(pageSize uint32,
+		pageToken []byte) (*routing.MissionControlHistoryPage, error)
+
 	// ImportHistory imports the mission control snapshot to our internal
 	// state. This import will only be applied in-memory, and will not be
 	// persisted across restarts.

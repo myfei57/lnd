@@ -1307,15 +1307,46 @@ func (s *Server) SetMissionControlConfig(ctx context.Context,
 		s.cfg.RouterBackend.MissionControl.SetConfig(mcCfg)
 }
 
-// QueryMissionControl exposes the internal mission control state to callers. It
-// is a development feature.
+// QueryMissionControl exposes the internal mission control state to callers.
+// It is a development feature.
+//
+// If neither a page token nor a page size is provided, the full history is
+// returned in a single response. Otherwise the history is returned page by
+// page from a fixed snapshot that is taken by the first request.
 func (s *Server) QueryMissionControl(_ context.Context,
-	_ *QueryMissionControlRequest) (*QueryMissionControlResponse, error) {
+	in *QueryMissionControlRequest) (*QueryMissionControlResponse, error) {
 
-	snapshot := s.cfg.RouterBackend.MissionControl.GetHistorySnapshot()
+	// Without any pagination parameters, the full history is returned in
+	// a single response as before.
+	if len(in.PageToken) == 0 && in.PageSize == 0 {
+		snapshot := s.cfg.RouterBackend.MissionControl.
+			GetHistorySnapshot()
 
-	rpcPairs := make([]*PairHistory, 0, len(snapshot.Pairs))
-	for _, p := range snapshot.Pairs {
+		return &QueryMissionControlResponse{
+			Pairs: marshallPairHistories(snapshot.Pairs),
+		}, nil
+	}
+
+	page, err := s.cfg.RouterBackend.MissionControl.QueryHistoryPage(
+		in.PageSize, in.PageToken,
+	)
+	if err != nil {
+		return nil, mapHistoryPageError(err)
+	}
+
+	return &QueryMissionControlResponse{
+		Pairs:         marshallPairHistories(page.Pairs),
+		NextPageToken: page.NextPageToken,
+	}, nil
+}
+
+// marshallPairHistories converts a slice of mission control pair snapshots to
+// their RPC representation.
+func marshallPairHistories(
+	pairs []routing.MissionControlPairSnapshot) []*PairHistory {
+
+	rpcPairs := make([]*PairHistory, 0, len(pairs))
+	for _, p := range pairs {
 		// Prevent binding to loop variable.
 		pair := p
 
@@ -1328,11 +1359,32 @@ func (s *Server) QueryMissionControl(_ context.Context,
 		rpcPairs = append(rpcPairs, &rpcPair)
 	}
 
-	response := QueryMissionControlResponse{
-		Pairs: rpcPairs,
-	}
+	return rpcPairs
+}
 
-	return &response, nil
+// mapHistoryPageError maps mission control history pagination errors to gRPC
+// status errors. Invalid requests result in InvalidArgument, expired or
+// unknown snapshots in FailedPrecondition and an exhausted snapshot capacity
+// in ResourceExhausted. Unknown errors are passed through as internal errors.
+func mapHistoryPageError(err error) error {
+	switch {
+	case errors.Is(err, routing.ErrPageSizeOutOfRange),
+		errors.Is(err, routing.ErrPageSizeMismatch),
+		errors.Is(err, routing.ErrInvalidPageToken):
+
+		return status.Error(codes.InvalidArgument, err.Error())
+
+	case errors.Is(err, routing.ErrHistorySnapshotExpired),
+		errors.Is(err, routing.ErrHistorySnapshotNotFound):
+
+		return status.Error(codes.FailedPrecondition, err.Error())
+
+	case errors.Is(err, routing.ErrHistorySnapshotLimitExceeded):
+		return status.Error(codes.ResourceExhausted, err.Error())
+
+	default:
+		return status.Error(codes.Internal, err.Error())
+	}
 }
 
 // toRPCPairData marshalls mission control pair data to the rpc struct.

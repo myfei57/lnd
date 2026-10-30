@@ -124,7 +124,24 @@
 
 ## RPC Updates
 
+* `QueryMissionControl` now supports fixed-snapshot pagination through the new
+  `page_size` and `page_token` request fields and the `next_page_token`
+  response field. Setting `page_size` to a value between 1 and 1000 takes an
+  immutable snapshot of the node pair history, ordered by the raw
+  `node_from`/`node_to` public key bytes, and returns its first page with an
+  opaque continuation token. Every later page is served from that same read,
+  so concurrent payment results, imports and history resets cannot change the
+  exported contents or cause duplicates or missing entries. Snapshots expire 5
+  minutes after creation and at most 64 are retained per node; expired,
+  forged, foreign-node and pre-restart tokens are rejected explicitly. Requests
+  without `page_size` and `page_token` keep returning the full history in a
+  single response.
+
 ## lncli Updates
+
+* The `querymc` command now supports `--page_size` (1 to 1000) and
+  `--page_token` (hex encoded) flags to page through a fixed mission control
+  history snapshot.
 
 ## Breaking Changes
 

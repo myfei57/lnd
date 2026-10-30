@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"encoding/hex"
 	"fmt"
 	"strconv"
 
@@ -273,7 +274,23 @@ var queryMissionControlCommand = cli.Command{
 	Name:     "querymc",
 	Category: "Mission Control",
 	Usage:    "Query the internal mission control state.",
-	Action:   actionDecorator(queryMissionControl),
+	Flags: []cli.Flag{
+		cli.UintFlag{
+			Name: "page_size",
+			Usage: "the maximum number of node pairs to " +
+				"return in a single page, between 1 and " +
+				"1000; if set, pairs are returned from a " +
+				"fixed snapshot and page_token is used to " +
+				"page through it",
+		},
+		cli.StringFlag{
+			Name: "page_token",
+			Usage: "the hex encoded opaque continuation token " +
+				"returned as next_page_token by the " +
+				"previous page",
+		},
+	},
+	Action: actionDecorator(queryMissionControl),
 }
 
 func queryMissionControl(ctx *cli.Context) error {
@@ -283,7 +300,18 @@ func queryMissionControl(ctx *cli.Context) error {
 
 	client := routerrpc.NewRouterClient(conn)
 
-	req := &routerrpc.QueryMissionControlRequest{}
+	req := &routerrpc.QueryMissionControlRequest{
+		PageSize: uint32(ctx.Uint64("page_size")),
+	}
+
+	if ctx.IsSet("page_token") {
+		token, err := hex.DecodeString(ctx.String("page_token"))
+		if err != nil {
+			return fmt.Errorf("invalid page_token: %w", err)
+		}
+		req.PageToken = token
+	}
+
 	snapshot, err := client.QueryMissionControl(ctxc, req)
 	if err != nil {
 		return err

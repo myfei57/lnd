@@ -1109,7 +1109,25 @@ func (*ResetMissionControlResponse) Descriptor() ([]byte, []int) {
 }
 
 type QueryMissionControlRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	//
+	//The maximum number of node pairs to return in a single page. If set to a
+	//value between 1 and 1000, the pairs are returned from a fixed, paginated
+	//snapshot of the mission control history that is taken at the time of this
+	//first request. The response contains an opaque next_page_token that is
+	//used to request the following pages of the same snapshot.
+	//
+	//If neither page_size nor page_token is set, the full history is returned
+	//in a single response as before.
+	PageSize uint32 `protobuf:"varint,1,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	//
+	//Opaque continuation token returned as next_page_token in the response of
+	//the previous page. If set, the next page of the snapshot that was created
+	//by the first request is returned. The token must be presented to the same
+	//node that created it and expires 5 minutes after snapshot creation.
+	//page_size may be omitted on continuation requests; if present it must
+	//match the page_size of the first request.
+	PageToken     []byte `protobuf:"bytes,2,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1144,11 +1162,30 @@ func (*QueryMissionControlRequest) Descriptor() ([]byte, []int) {
 	return file_routerrpc_router_proto_rawDescGZIP(), []int{8}
 }
 
+func (x *QueryMissionControlRequest) GetPageSize() uint32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+func (x *QueryMissionControlRequest) GetPageToken() []byte {
+	if x != nil {
+		return x.PageToken
+	}
+	return nil
+}
+
 // QueryMissionControlResponse contains mission control state.
 type QueryMissionControlResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Node pair-level mission control state.
-	Pairs         []*PairHistory `protobuf:"bytes,2,rep,name=pairs,proto3" json:"pairs,omitempty"`
+	Pairs []*PairHistory `protobuf:"bytes,2,rep,name=pairs,proto3" json:"pairs,omitempty"`
+	//
+	//Opaque continuation token used to fetch the next page of the snapshot
+	//that this response belongs to. The field is empty if there are no more
+	//pages in the snapshot.
+	NextPageToken []byte `protobuf:"bytes,3,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1186,6 +1223,13 @@ func (*QueryMissionControlResponse) Descriptor() ([]byte, []int) {
 func (x *QueryMissionControlResponse) GetPairs() []*PairHistory {
 	if x != nil {
 		return x.Pairs
+	}
+	return nil
+}
+
+func (x *QueryMissionControlResponse) GetNextPageToken() []byte {
+	if x != nil {
+		return x.NextPageToken
 	}
 	return nil
 }
@@ -3778,10 +3822,14 @@ const file_routerrpc_router_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\x04R\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\fR\x05value:\x028\x01\"\x1c\n" +
 	"\x1aResetMissionControlRequest\"\x1d\n" +
-	"\x1bResetMissionControlResponse\"\x1c\n" +
-	"\x1aQueryMissionControlRequest\"Q\n" +
+	"\x1bResetMissionControlResponse\"X\n" +
+	"\x1aQueryMissionControlRequest\x12\x1b\n" +
+	"\tpage_size\x18\x01 \x01(\rR\bpageSize\x12\x1d\n" +
+	"\n" +
+	"page_token\x18\x02 \x01(\fR\tpageToken\"y\n" +
 	"\x1bQueryMissionControlResponse\x12,\n" +
-	"\x05pairs\x18\x02 \x03(\v2\x16.routerrpc.PairHistoryR\x05pairsJ\x04\b\x01\x10\x02\"b\n" +
+	"\x05pairs\x18\x02 \x03(\v2\x16.routerrpc.PairHistoryR\x05pairs\x12&\n" +
+	"\x0fnext_page_token\x18\x03 \x01(\fR\rnextPageTokenJ\x04\b\x01\x10\x02\"b\n" +
 	"\x1cXImportMissionControlRequest\x12,\n" +
 	"\x05pairs\x18\x01 \x03(\v2\x16.routerrpc.PairHistoryR\x05pairs\x12\x14\n" +
 	"\x05force\x18\x02 \x01(\bR\x05force\"\x1f\n" +

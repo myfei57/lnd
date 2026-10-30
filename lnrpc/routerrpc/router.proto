@@ -474,6 +474,27 @@ message ResetMissionControlResponse {
 }
 
 message QueryMissionControlRequest {
+    /*
+    The maximum number of node pairs to return in a single page. If set to a
+    value between 1 and 1000, the pairs are returned from a fixed, paginated
+    snapshot of the mission control history that is taken at the time of this
+    first request. The response contains an opaque next_page_token that is
+    used to request the following pages of the same snapshot.
+
+    If neither page_size nor page_token is set, the full history is returned
+    in a single response as before.
+    */
+    uint32 page_size = 1;
+
+    /*
+    Opaque continuation token returned as next_page_token in the response of
+    the previous page. If set, the next page of the snapshot that was created
+    by the first request is returned. The token must be presented to the same
+    node that created it and expires 5 minutes after snapshot creation.
+    page_size may be omitted on continuation requests; if present it must
+    match the page_size of the first request.
+    */
+    bytes page_token = 2;
 }
 
 // QueryMissionControlResponse contains mission control state.
@@ -482,6 +503,13 @@ message QueryMissionControlResponse {
 
     // Node pair-level mission control state.
     repeated PairHistory pairs = 2;
+
+    /*
+    Opaque continuation token used to fetch the next page of the snapshot
+    that this response belongs to. The field is empty if there are no more
+    pages in the snapshot.
+    */
+    bytes next_page_token = 3;
 }
 
 message XImportMissionControlRequest {

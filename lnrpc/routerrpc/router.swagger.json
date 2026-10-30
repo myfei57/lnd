@@ -142,6 +142,24 @@
             }
           }
         },
+        "parameters": [
+          {
+            "name": "page_size",
+            "description": "The maximum number of node pairs to return in a single page. If set to a\nvalue between 1 and 1000, the pairs are returned from a fixed, paginated\nsnapshot of the mission control history that is taken at the time of this\nfirst request. The response contains an opaque next_page_token that is\nused to request the following pages of the same snapshot.\n\nIf neither page_size nor page_token is set, the full history is returned\nin a single response as before.",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
+          },
+          {
+            "name": "page_token",
+            "description": "Opaque continuation token returned as next_page_token in the response of\nthe previous page. If set, the next page of the snapshot that was created\nby the first request is returned. The token must be presented to the same\nnode that created it and expires 5 minutes after snapshot creation.\npage_size may be omitted on continuation requests; if present it must\nmatch the page_size of the first request.",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "byte"
+          }
+        ],
         "tags": [
           "Router"
         ]
@@ -1886,6 +1904,11 @@
             "$ref": "#/definitions/routerrpcPairHistory"
           },
           "description": "Node pair-level mission control state."
+        },
+        "next_page_token": {
+          "type": "string",
+          "format": "byte",
+          "description": "Opaque continuation token used to fetch the next page of the snapshot\nthat this response belongs to. The field is empty if there are no more\npages in the snapshot."
         }
       },
       "description": "QueryMissionControlResponse contains mission control state."

@@ -123,6 +123,10 @@ type MissionControl struct {
 
 	store *missionControlStore
 
+	// historySnapshots retains fixed snapshots of the pair history for
+	// paginated QueryMissionControl exports.
+	historySnapshots *historySnapshotStore
+
 	// estimator is the probability estimator that is used with the payment
 	// results that mission control collects.
 	estimator Estimator
@@ -411,15 +415,21 @@ func (m *MissionController) initMissionControl(namespace string) (
 		return nil, err
 	}
 
+	snapshotStore, err := newHistorySnapshotStore()
+	if err != nil {
+		return nil, err
+	}
+
 	mc := &MissionControl{
 		cfg: m.cfg,
 		state: newMissionControlState(
 			cfg.MinFailureRelaxInterval,
 		),
-		store:          store,
-		estimator:      cfg.Estimator,
-		log:            log.WithPrefix(fmt.Sprintf("[%s]:", namespace)),
-		onConfigUpdate: cfg.OnConfigUpdate,
+		store:            store,
+		historySnapshots: snapshotStore,
+		estimator:        cfg.Estimator,
+		log:              log.WithPrefix(fmt.Sprintf("[%s]:", namespace)),
+		onConfigUpdate:   cfg.OnConfigUpdate,
 	}
 
 	m.mc[namespace] = mc
@@ -565,6 +575,54 @@ func (m *MissionControl) GetHistorySnapshot() *MissionControlSnapshot {
 	m.log.Debugf("Requesting history snapshot from mission control")
 
 	return m.state.getSnapshot()
+}
+
+// QueryHistoryPage returns a single page of node pair history from a fixed
+// snapshot.
+//
+// If pageToken is empty, a new snapshot is created and its first page is
+// returned. pageSize must in that case be between MinHistoryPageSize and
+// MaxHistoryPageSize. The returned page carries an opaque next page token.
+//
+// If pageToken is set, the next page of the snapshot created by the initial
+// request is returned. pageSize may be zero to keep using the snapshot's page
+// size; if it is set, it must match the page size of the initial request.
+//
+// Every page is served from the same immutable snapshot, so payment results,
+// imports or history resets that happen while the export is in progress do
+// not change its contents and cannot lead to duplicates or missing entries.
+// Reading pages does not modify mission control's learned state.
+func (m *MissionControl) QueryHistoryPage(pageSize uint32,
+	pageToken []byte) (*MissionControlHistoryPage, error) {
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	now := m.cfg.clock.Now()
+
+	if len(pageToken) == 0 {
+		if pageSize < MinHistoryPageSize ||
+			pageSize > MaxHistoryPageSize {
+
+			return nil, ErrPageSizeOutOfRange
+		}
+
+		snapshot, err := m.historySnapshots.create(
+			pageSize, m.state, now,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		m.log.Debugf("Created paginated history snapshot %x with "+
+			"page_size=%v", snapshot.id[:], pageSize)
+
+		return m.historySnapshots.page(snapshot, 0)
+	}
+
+	m.log.Debugf("Serving paginated history snapshot page")
+
+	return m.historySnapshots.get(pageToken, pageSize, now)
 }
 
 // ImportHistory imports the set of mission control results provided to our
