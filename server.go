@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"image/color"
+	"math"
 	"math/big"
 	prand "math/rand"
 	"net"
@@ -4528,10 +4529,139 @@ func (s *server) handleCustomMessage(peer [33]byte, msg *lnwire.Custom) error {
 	})
 }
 
+// customMessageFilter restricts the set of custom messages delivered to a
+// single SubscribeCustomMessages client. A nil *customMessageFilter accepts
+// every custom message.
+type customMessageFilter struct {
+	// peerPubkeys holds the set of source peers a message may originate
+	// from. A nil/empty map does not restrict the source peer.
+	peerPubkeys map[[33]byte]struct{}
+
+	// msgTypes holds the set of message types that are accepted. A
+	// nil/empty map does not restrict the message type.
+	msgTypes map[lnwire.MessageType]struct{}
+}
+
+// newCustomMessageFilter validates the requested peer pubkeys and message
+// types and builds a deduplicated filter. Each peer must be a valid 33-byte
+// compressed public key (it does not need to belong to a currently connected
+// peer), and each message type must either be in the custom range
+// ([lnwire.CustomTypeStart], 65535) or be a protocol type that the node
+// currently overrides through its experimental protocol configuration. No
+// new protocol override is enabled by constructing a filter. All conditions
+// are validated up front: an invalid condition returns an error and no
+// subscription state is created.
+func newCustomMessageFilter(peerPubkeys [][]byte,
+	msgTypes []uint32) (*customMessageFilter, error) {
+
+	filter := &customMessageFilter{
+		peerPubkeys: make(map[[33]byte]struct{}, len(peerPubkeys)),
+		msgTypes:    make(map[lnwire.MessageType]struct{}, len(msgTypes)),
+	}
+
+	for _, rawPubkey := range peerPubkeys {
+		// Only compressed (33-byte) public keys are accepted;
+		// ParsePubKey on a 33-byte key also verifies the prefix and
+		// curve point.
+		if len(rawPubkey) != 33 {
+			return nil, fmt.Errorf("peer public key must be a "+
+				"33-byte compressed public key, got %d bytes",
+				len(rawPubkey))
+		}
+
+		pubkey, err := btcec.ParsePubKey(rawPubkey)
+		if err != nil {
+			return nil, fmt.Errorf("invalid peer public key: %w",
+				err)
+		}
+
+		// Normalize into the canonical compressed serialization used
+		// as the map key so duplicates collapse into one entry.
+		var peer [33]byte
+		copy(peer[:], pubkey.SerializeCompressed())
+		filter.peerPubkeys[peer] = struct{}{}
+	}
+
+	for _, rawType := range msgTypes {
+		if rawType > math.MaxUint16 {
+			return nil, fmt.Errorf("custom message type %d is out "+
+				"of range, must be <= %d", rawType,
+				math.MaxUint16)
+		}
+
+		msgType := lnwire.MessageType(rawType)
+
+		// Types below the custom range are only accepted when the
+		// node was explicitly configured to override them. Merely
+		// subscribing does not add the type to the override set.
+		if msgType < lnwire.CustomTypeStart &&
+			!lnwire.IsCustomOverride(msgType) {
+
+			return nil, fmt.Errorf("custom message type %d is "+
+				"below the custom range (%d) and is not an "+
+				"enabled protocol override", msgType,
+				lnwire.CustomTypeStart)
+		}
+
+		filter.msgTypes[msgType] = struct{}{}
+	}
+
+	return filter, nil
+}
+
+// matches reports whether a custom message passes the filter. When both
+// dimensions are configured a message must match both of them; an unset
+// dimension does not restrict the message.
+func (f *customMessageFilter) matches(msg *CustomMessage) bool {
+	if f == nil {
+		return true
+	}
+
+	if len(f.peerPubkeys) > 0 {
+		if _, ok := f.peerPubkeys[msg.Peer]; !ok {
+			return false
+		}
+	}
+
+	if len(f.msgTypes) > 0 {
+		if _, ok := f.msgTypes[msg.Msg.Type]; !ok {
+			return false
+		}
+	}
+
+	return true
+}
+
+// empty reports whether the filter leaves both dimensions unrestricted.
+func (f *customMessageFilter) empty() bool {
+	if f == nil {
+		return true
+	}
+
+	return len(f.peerPubkeys) == 0 && len(f.msgTypes) == 0
+}
+
 // SubscribeCustomMessages subscribes to a stream of incoming custom peer
-// messages.
-func (s *server) SubscribeCustomMessages() (*subscribe.Client, error) {
-	return s.customMessageServer.Subscribe()
+// messages. The optional filter restricts the source peers and/or message
+// types delivered to the returned client; a nil or empty filter delivers all
+// custom messages.
+func (s *server) SubscribeCustomMessages(
+	filter *customMessageFilter) (*subscribe.Client, error) {
+
+	if filter.empty() {
+		return s.customMessageServer.Subscribe()
+	}
+
+	return s.customMessageServer.SubscribeFiltered(
+		func(update interface{}) bool {
+			msg, ok := update.(*CustomMessage)
+			if !ok {
+				return false
+			}
+
+			return filter.matches(msg)
+		},
+	)
 }
 
 // SubscribeOnionMessages subscribes to a stream of incoming onion messages.

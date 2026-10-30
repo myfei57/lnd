@@ -599,6 +599,20 @@ message LookupHtlcResolutionResponse {
 }
 
 message SubscribeCustomMessagesRequest {
+    // If non-empty, only messages that originate from one of the given peers
+    // are delivered to this subscription. A match on any entry in the set is
+    // sufficient. Each entry must be a 33-byte compressed public key; peers
+    // that are not currently connected are allowed. If empty, messages from
+    // any peer pass this filter.
+    repeated bytes peer_pubkeys = 1;
+
+    // If non-empty, only messages with one of the given message types are
+    // delivered to this subscription. A match on any entry in the set is
+    // sufficient. Each type must be in the custom range (32768 to 65535) or
+    // be a protocol type the node currently overrides via its experimental
+    // protocol configuration; subscribing does not enable any new protocol
+    // type. If empty, messages of any type pass this filter.
+    repeated uint32 message_types = 2;
 }
 
 message CustomMessage {

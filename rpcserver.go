@@ -8730,10 +8730,19 @@ func (r *rpcServer) SendCustomMessage(ctx context.Context,
 // SubscribeCustomMessages subscribes to a stream of incoming custom peer
 // messages.
 func (r *rpcServer) SubscribeCustomMessages(
-	_ *lnrpc.SubscribeCustomMessagesRequest,
+	req *lnrpc.SubscribeCustomMessagesRequest,
 	server lnrpc.Lightning_SubscribeCustomMessagesServer) error {
 
-	client, err := r.server.SubscribeCustomMessages()
+	// Validate all subscription conditions up front, before any
+	// subscription state is created.
+	filter, err := newCustomMessageFilter(
+		req.PeerPubkeys, req.MessageTypes,
+	)
+	if err != nil {
+		return status.Error(codes.InvalidArgument, err.Error())
+	}
+
+	client, err := r.server.SubscribeCustomMessages(filter)
 	if err != nil {
 		return err
 	}

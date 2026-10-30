@@ -1595,7 +1595,20 @@ func (x *LookupHtlcResolutionResponse) GetOffchain() bool {
 }
 
 type SubscribeCustomMessagesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// If non-empty, only messages that originate from one of the given peers
+	// are delivered to this subscription. A match on any entry in the set is
+	// sufficient. Each entry must be a 33-byte compressed public key; peers
+	// that are not currently connected are allowed. If empty, messages from
+	// any peer pass this filter.
+	PeerPubkeys [][]byte `protobuf:"bytes,1,rep,name=peer_pubkeys,json=peerPubkeys,proto3" json:"peer_pubkeys,omitempty"`
+	// If non-empty, only messages with one of the given message types are
+	// delivered to this subscription. A match on any entry in the set is
+	// sufficient. Each type must be in the custom range (32768 to 65535) or
+	// be a protocol type the node currently overrides via its experimental
+	// protocol configuration; subscribing does not enable any new protocol
+	// type. If empty, messages of any type pass this filter.
+	MessageTypes []uint32 `protobuf:"varint,2,rep,packed,name=message_types,json=messageTypes,proto3" json:"message_types,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1628,6 +1641,20 @@ func (x *SubscribeCustomMessagesRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use SubscribeCustomMessagesRequest.ProtoReflect.Descriptor instead.
 func (*SubscribeCustomMessagesRequest) Descriptor() ([]byte, []int) {
 	return file_lightning_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *SubscribeCustomMessagesRequest) GetPeerPubkeys() [][]byte {
+	if x != nil {
+		return x.PeerPubkeys
+	}
+	return nil
+}
+
+func (x *SubscribeCustomMessagesRequest) GetMessageTypes() []uint32 {
+	if x != nil {
+		return x.MessageTypes
+	}
+	return nil
 }
 
 type CustomMessage struct {
@@ -18881,8 +18908,10 @@ const file_lightning_proto_rawDesc = "" +
 	"htlc_index\x18\x02 \x01(\x04R\thtlcIndex\"T\n" +
 	"\x1cLookupHtlcResolutionResponse\x12\x18\n" +
 	"\asettled\x18\x01 \x01(\bR\asettled\x12\x1a\n" +
-	"\boffchain\x18\x02 \x01(\bR\boffchain\" \n" +
-	"\x1eSubscribeCustomMessagesRequest\"K\n" +
+	"\boffchain\x18\x02 \x01(\bR\boffchain\"h\n" +
+	"\x1eSubscribeCustomMessagesRequest\x12!\n" +
+	"\fpeer_pubkeys\x18\x01 \x03(\fR\vpeerPubkeys\x12#\n" +
+	"\rmessage_types\x18\x02 \x03(\rR\fmessageTypes\"K\n" +
 	"\rCustomMessage\x12\x12\n" +
 	"\x04peer\x18\x01 \x01(\fR\x04peer\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\rR\x04type\x12\x12\n" +

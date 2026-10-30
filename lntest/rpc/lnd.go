@@ -702,13 +702,17 @@ type CustomMessageClient lnrpc.Lightning_SubscribeCustomMessagesClient
 
 type OnionMessageClient lnrpc.Lightning_SubscribeOnionMessagesClient
 
-// SubscribeCustomMessages creates a subscription client for custom messages.
-func (h *HarnessRPC) SubscribeCustomMessages() (CustomMessageClient,
+// SubscribeCustomMessages creates a subscription client for custom messages,
+// optionally restricted to the peer pubkeys and message types in the request.
+func (h *HarnessRPC) SubscribeCustomMessages(
+	req *lnrpc.SubscribeCustomMessagesRequest) (CustomMessageClient,
 	context.CancelFunc) {
 
 	ctxt, cancel := context.WithCancel(h.runCtx)
 
-	req := &lnrpc.SubscribeCustomMessagesRequest{}
+	if req == nil {
+		req = &lnrpc.SubscribeCustomMessagesRequest{}
+	}
 
 	// SubscribeCustomMessages needs to have the context alive for the
 	// entire test case as the returned client will be used for send and

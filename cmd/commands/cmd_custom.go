@@ -59,8 +59,25 @@ func sendCustom(ctx *cli.Context) error {
 var subscribeCustomCommand = cli.Command{
 	Name:     "subscribecustom",
 	Category: "Peers",
-	Usage: "Subscribe to incoming custom p2p wire messages from all " +
-		"peers",
+	Usage: "Subscribe to incoming custom p2p wire messages, optionally " +
+		"filtered by source peer and message type",
+	Flags: []cli.Flag{
+		cli.StringSliceFlag{
+			Name: "peer",
+			Usage: "hex-encoded 33-byte compressed public key of " +
+				"a peer to receive messages from (the peer " +
+				"does not need to be connected). Can be set " +
+				"multiple times; a match against any entry is " +
+				"sufficient",
+		},
+		cli.Int64SliceFlag{
+			Name: "type",
+			Usage: "custom message type (32768 to 65535, or an " +
+				"enabled protocol override type) to receive. " +
+				"Can be set multiple times; a match against " +
+				"any entry is sufficient",
+		},
+	},
 	Action: actionDecorator(subscribeCustom),
 }
 
@@ -69,9 +86,30 @@ func subscribeCustom(ctx *cli.Context) error {
 	client, cleanUp := getClient(ctx)
 	defer cleanUp()
 
-	stream, err := client.SubscribeCustomMessages(
-		ctxc, &lnrpc.SubscribeCustomMessagesRequest{},
-	)
+	req := &lnrpc.SubscribeCustomMessagesRequest{}
+
+	for _, peerHex := range ctx.StringSlice("peer") {
+		peer, err := hex.DecodeString(peerHex)
+		if err != nil {
+			return fmt.Errorf("could not hex decode peer %v: %w",
+				peerHex, err)
+		}
+
+		req.PeerPubkeys = append(req.PeerPubkeys, peer)
+	}
+
+	for _, msgType := range ctx.Int64Slice("type") {
+		if msgType < 0 || msgType > 65535 {
+			return fmt.Errorf("invalid message type %d: must be "+
+				"between 0 and 65535", msgType)
+		}
+
+		req.MessageTypes = append(
+			req.MessageTypes, uint32(msgType),
+		)
+	}
+
+	stream, err := client.SubscribeCustomMessages(ctxc, req)
 	if err != nil {
 		return err
 	}

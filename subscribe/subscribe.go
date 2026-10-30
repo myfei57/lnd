@@ -18,6 +18,12 @@ type Client struct {
 	// subscribe for updates from the server.
 	cancel func()
 
+	// filter is an optional predicate that decides whether an update
+	// should be delivered to this client. Updates for which the filter
+	// returns false are dropped before entering the client's queue. A nil
+	// filter accepts every update.
+	filter func(update interface{}) bool
+
 	updates *queue.ConcurrentQueue
 	quit    chan struct{}
 }
@@ -114,6 +120,19 @@ func (s *Server) Stop() error {
 // Subscribe returns a Client that will receive updates any time the Server is
 // made aware of a new event.
 func (s *Server) Subscribe() (*Client, error) {
+	return s.SubscribeFiltered(nil)
+}
+
+// SubscribeFiltered returns a Client that, like Subscribe, receives updates
+// any time the Server is made aware of a new event. Updates for which the
+// passed filter predicate returns false are not delivered to the client and
+// never enter its update queue. A nil filter causes every update to be
+// delivered, making SubscribeFiltered(nil) equivalent to Subscribe. The
+// filter is called from the server's single dispatch goroutine, so updates
+// delivered to a client retain the order in which the server received them.
+func (s *Server) SubscribeFiltered(filter func(update interface{}) bool) (
+	*Client, error) {
+
 	// We'll first atomically obtain the next ID for this client from the
 	// incrementing client ID counter.
 	clientID := atomic.AddUint64(&s.clientCounter, 1)
@@ -122,6 +141,7 @@ func (s *Server) Subscribe() (*Client, error) {
 	// populated to send the cancellation intent to the
 	// subscriptionHandler.
 	client := &Client{
+		filter:  filter,
 		updates: queue.NewConcurrentQueue(20),
 		quit:    make(chan struct{}),
 		cancel: func() {
@@ -198,9 +218,17 @@ func (s *Server) subscriptionHandler() {
 			update.client.updates.Start()
 			s.clients[update.clientID] = update.client
 
-		// A new update was received, forward it to all active clients.
+		// A new update was received, forward it to all active clients
+		// that opted in to this kind of update.
 		case upd := <-s.updates:
 			for _, client := range s.clients {
+				// Drop updates that the client did not
+				// subscribe to before they can enter the
+				// client's queue.
+				if client.filter != nil && !client.filter(upd) {
+					continue
+				}
+
 				select {
 				case client.updates.ChanIn() <- upd:
 				case <-client.quit:

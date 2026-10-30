@@ -874,6 +874,32 @@
             }
           }
         },
+        "parameters": [
+          {
+            "name": "peer_pubkeys",
+            "description": "If non-empty, only messages that originate from one of the given peers\nare delivered to this subscription. A match on any entry in the set is\nsufficient. Each entry must be a 33-byte compressed public key; peers\nthat are not currently connected are allowed. If empty, messages from\nany peer pass this filter.",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "byte"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "message_types",
+            "description": "If non-empty, only messages with one of the given message types are\ndelivered to this subscription. A match on any entry in the set is\nsufficient. Each type must be in the custom range (32768 to 65535) or\nbe a protocol type the node currently overrides via its experimental\nprotocol configuration; subscribing does not enable any new protocol\ntype. If empty, messages of any type pass this filter.",
+            "in": "query",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64"
+            },
+            "collectionFormat": "multi"
+          }
+        ],
         "tags": [
           "Lightning"
         ]

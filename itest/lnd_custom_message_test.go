@@ -4,10 +4,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lntest"
 	"github.com/lightningnetwork/lnd/lnwire"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // testCustomMessage tests sending and receiving of overridden custom message
@@ -30,7 +33,7 @@ func testCustomMessage(ht *lntest.HarnessTest) {
 
 	// Subscribe Alice to custom messages before we send any, so that we
 	// don't miss any.
-	msgClient, cancel := alice.RPC.SubscribeCustomMessages()
+	msgClient, cancel := alice.RPC.SubscribeCustomMessages(nil)
 	defer cancel()
 
 	// Create a channel to receive custom messages on.
@@ -152,5 +155,122 @@ func testCustomMessage(ht *lntest.HarnessTest) {
 
 	case <-time.After(lntest.DefaultTimeout):
 		ht.Fatalf("alice did not receive second custom message")
+	}
+
+	// Now exercise the server-side subscription filters. Invalid
+	// conditions must be rejected with InvalidArgument before any
+	// subscription is created.
+	bobPubKey, err := btcec.ParsePubKey(bob.PubKey[:])
+	require.NoError(ht, err, "unable to parse bob's public key")
+
+	invalidReqs := []*lnrpc.SubscribeCustomMessagesRequest{
+		// Not a valid public key.
+		{PeerPubkeys: [][]byte{{1, 2, 3}}},
+		// A 65-byte uncompressed public key is rejected even though
+		// it is a valid key.
+		{PeerPubkeys: [][]byte{bobPubKey.SerializeUncompressed()}},
+		// Type below the custom range that Alice does not override
+		// (only overrideType1 is enabled on Alice).
+		{MessageTypes: []uint32{overrideType2}},
+		// Type outside the 16-bit message type space.
+		{MessageTypes: []uint32{65536}},
+	}
+	for i, req := range invalidReqs {
+		_, err := alice.RPC.LN.SubscribeCustomMessages(
+			ht.Context(), req,
+		)
+		require.Error(ht, err, "case %d: expected error", i)
+		require.Equal(ht, codes.InvalidArgument,
+			status.Convert(err).Code(),
+			"case %d: expected InvalidArgument", i)
+	}
+
+	// Subscribing to the override type that is enabled on Alice succeeds,
+	// proving that overridden types pass validation without opening any
+	// new protocol type.
+	_, overrideCancel := alice.RPC.SubscribeCustomMessages(
+		&lnrpc.SubscribeCustomMessagesRequest{
+			MessageTypes: []uint32{overrideType1},
+		},
+	)
+	defer overrideCancel()
+
+	// Subscribe Alice to messages from Bob of the in-range custom type.
+	// The duplicate entries must not cause duplicate deliveries.
+	filteredClient, filteredCancel := alice.RPC.SubscribeCustomMessages(
+		&lnrpc.SubscribeCustomMessagesRequest{
+			PeerPubkeys: [][]byte{
+				bob.PubKey[:], bob.PubKey[:],
+			},
+			MessageTypes: []uint32{msgType, msgType},
+		},
+	)
+	defer filteredCancel()
+
+	// A second, non-matching filtered subscription (different type) must
+	// not receive the message we're about to send.
+	otherClient, otherCancel := alice.RPC.SubscribeCustomMessages(
+		&lnrpc.SubscribeCustomMessagesRequest{
+			MessageTypes: []uint32{msgType + 1},
+		},
+	)
+	defer otherCancel()
+
+	filteredMessages := make(chan *lnrpc.CustomMessage, 1)
+	go func() {
+		msg, err := filteredClient.Recv()
+		if err != nil {
+			return
+		}
+
+		select {
+		case filteredMessages <- msg:
+		case <-ht.Context().Done():
+		}
+	}()
+
+	otherMessages := make(chan *lnrpc.CustomMessage, 1)
+	go func() {
+		msg, err := otherClient.Recv()
+		if err != nil {
+			return
+		}
+
+		select {
+		case otherMessages <- msg:
+		case <-ht.Context().Done():
+		}
+	}()
+
+	// Bob sends the in-range custom message once more.
+	bobMsg = &lnrpc.SendCustomMessageRequest{
+		Peer: alice.PubKey[:],
+		Type: msgType,
+		Data: msgData,
+	}
+	bob.RPC.SendCustomMessage(bobMsg)
+
+	// The matching subscription receives the message exactly once, with
+	// the original payload intact.
+	select {
+	case msg := <-filteredMessages:
+		require.Equal(ht, msgType, msg.Type, "filtered msg type")
+		require.Equal(ht, msgData, msg.Data, "filtered msg data")
+		require.Equal(ht, bob.PubKey[:], msg.Peer,
+			"filtered msg peer")
+
+	case <-time.After(lntest.DefaultTimeout):
+		ht.Fatalf("alice did not receive filtered custom message")
+	}
+
+	// The non-matching subscription must not have queued the message.
+	// The matching subscription above only delivers after the server has
+	// dispatched the update to every subscription, so a non-matching
+	// update was already dropped by the time we reach this point.
+	select {
+	case msg := <-otherMessages:
+		ht.Fatalf("non-matching subscription received message: %v",
+			msg)
+	case <-time.After(time.Second):
 	}
 }
