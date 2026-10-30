@@ -1859,6 +1859,12 @@ var ListChannelsCommand = cli.Command{
 			Usage: "skip the peer alias lookup per channel in " +
 				"order to improve performance",
 		},
+		cli.StringFlag{
+			Name: "initiator",
+			Usage: "(optional) only display channels depending " +
+				"on which party initiated the channel open, " +
+				"one of: all, local, remote",
+		},
 	},
 	Action: actionDecorator(ListChannels),
 }
@@ -1911,6 +1917,21 @@ func ListChannels(ctx *cli.Context) error {
 	// skip_peer_alias_lookup flag indicates otherwise.
 	lookupPeerAlias := !ctx.Bool("skip_peer_alias_lookup")
 
+	// Map the optional initiator filter to the RPC enum. An empty value
+	// keeps the default behavior and returns all channels.
+	var initiator lnrpc.Initiator
+	switch ctx.String("initiator") {
+	case "", "all":
+		initiator = lnrpc.Initiator_INITIATOR_UNKNOWN
+	case "local":
+		initiator = lnrpc.Initiator_INITIATOR_LOCAL
+	case "remote":
+		initiator = lnrpc.Initiator_INITIATOR_REMOTE
+	default:
+		return fmt.Errorf("invalid --initiator value %v, supported "+
+			"values are: all, local, remote", ctx.String("initiator"))
+	}
+
 	req := &lnrpc.ListChannelsRequest{
 		ActiveOnly:      ctx.Bool("active_only"),
 		InactiveOnly:    ctx.Bool("inactive_only"),
@@ -1918,6 +1939,7 @@ func ListChannels(ctx *cli.Context) error {
 		PrivateOnly:     ctx.Bool("private_only"),
 		Peer:            peerKey,
 		PeerAliasLookup: lookupPeerAlias,
+		Initiator:       initiator,
 	}
 
 	resp, err := client.ListChannels(ctxc, req)

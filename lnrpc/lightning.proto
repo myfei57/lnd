@@ -1610,6 +1610,18 @@ message ListChannelsRequest {
     // enabled. It is turned off by default in order to avoid degradation of
     // performance for existing clients.
     bool peer_alias_lookup = 6;
+
+    /*
+    Filters the response for channels based on which party initiated the
+    opening of the channel. The filter uses the same information as the
+    `initiator` field of the returned channels. If INITIATOR_UNKNOWN (the
+    default) is set, channels initiated by either party are returned. If
+    INITIATOR_LOCAL is set, only channels initiated by this node are returned.
+    If INITIATOR_REMOTE is set, only channels initiated by the remote peer are
+    returned. The filter is intersected with all other filters set on the
+    request.
+    */
+    Initiator initiator = 7;
 }
 message ListChannelsResponse {
     // The list of active channels

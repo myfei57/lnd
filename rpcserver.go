@@ -4852,6 +4852,16 @@ func (r *rpcServer) ListChannels(ctx context.Context,
 		return nil, fmt.Errorf("invalid `peer` key: %w", err)
 	}
 
+	// Validate the initiator filter up front. The zero value,
+	// INITIATOR_UNKNOWN, is the default and leaves the result
+	// unfiltered (channels initiated by either party). Any other value
+	// that cannot be used as a filter (including INITIATOR_BOTH or an
+	// unknown enum number) is rejected so callers get an explicit error
+	// instead of silently unfiltered results.
+	if err := validateListChannelsInitiator(in.Initiator); err != nil {
+		return nil, err
+	}
+
 	resp := &lnrpc.ListChannelsResponse{}
 
 	dbChannels, err := r.server.chanStateDB.FetchAllOpenChannels()
@@ -4897,16 +4907,13 @@ func (r *rpcServer) ListChannels(ctx context.Context,
 			return nil, err
 		}
 
-		// We'll only skip returning this channel if we were requested
-		// for a specific kind and this channel doesn't satisfy it.
-		switch {
-		case in.ActiveOnly && !isActive:
-			continue
-		case in.InactiveOnly && isActive:
-			continue
-		case in.PublicOnly && channel.Private:
-			continue
-		case in.PrivateOnly && !channel.Private:
+		// Skip the channel if it does not satisfy every filter set
+		// on the request. The initiator match is based solely on
+		// the channel's persisted IsInitiator flag (the same value
+		// returned in the response), never on its online state.
+		if !matchListChannelsFilters(
+			in, isActive, channel.Private, dbChannel.IsInitiator,
+		) {
 			continue
 		}
 
@@ -4924,6 +4931,59 @@ func (r *rpcServer) ListChannels(ctx context.Context,
 	}
 
 	return resp, nil
+}
+
+// validateListChannelsInitiator validates the initiator filter of a
+// ListChannelsRequest. The zero value INITIATOR_UNKNOWN is the default and
+// leaves the result unfiltered; INITIATOR_LOCAL and INITIATOR_REMOTE select
+// channels opened by this node or the remote peer respectively. Any other
+// value (including INITIATOR_BOTH, which cannot be expressed through the
+// boolean initiator flag of open channels, or an unknown enum number) is
+// rejected with an explicit error.
+func validateListChannelsInitiator(initiator lnrpc.Initiator) error {
+	switch initiator {
+	case lnrpc.Initiator_INITIATOR_UNKNOWN,
+		lnrpc.Initiator_INITIATOR_LOCAL,
+		lnrpc.Initiator_INITIATOR_REMOTE:
+		return nil
+
+	default:
+		return fmt.Errorf("invalid `initiator` filter: %d; "+
+			"supported values are INITIATOR_UNKNOWN (all "+
+			"channels), INITIATOR_LOCAL and INITIATOR_REMOTE",
+			initiator)
+	}
+}
+
+// matchListChannelsFilters reports whether an open channel described by the
+// given attributes satisfies every filter requested in the
+// ListChannelsRequest. Filters are combined by intersection: a channel must
+// pass all enabled filters, just as the active/inactive, public/private and
+// peer filters have always been applied. The initiator match is derived only
+// from the channel's persisted IsInitiator flag - the same information exposed
+// as the Channel.initiator response field - and is never inferred from the
+// peer's current online state or the ordering of node public keys. An
+// INITIATOR_UNKNOWN filter (the default) matches channels initiated by either
+// party.
+func matchListChannelsFilters(in *lnrpc.ListChannelsRequest, isActive,
+	isPrivate, isInitiator bool) bool {
+
+	switch {
+	case in.ActiveOnly && !isActive:
+		return false
+	case in.InactiveOnly && isActive:
+		return false
+	case in.PublicOnly && isPrivate:
+		return false
+	case in.PrivateOnly && !isPrivate:
+		return false
+	case in.Initiator == lnrpc.Initiator_INITIATOR_LOCAL && !isInitiator:
+		return false
+	case in.Initiator == lnrpc.Initiator_INITIATOR_REMOTE && isInitiator:
+		return false
+	}
+
+	return true
 }
 
 // rpcCommitmentType takes the channel type and converts it to an rpc commitment

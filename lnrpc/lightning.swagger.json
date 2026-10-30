@@ -159,6 +159,20 @@
             "in": "query",
             "required": false,
             "type": "boolean"
+          },
+          {
+            "name": "initiator",
+            "description": "Filters the response for channels based on which party initiated the\nopening of the channel. The filter uses the same information as the\n`initiator` field of the returned channels. If INITIATOR_UNKNOWN (the\ndefault) is set, channels initiated by either party are returned. If\nINITIATOR_LOCAL is set, only channels initiated by this node are returned.\nIf INITIATOR_REMOTE is set, only channels initiated by the remote peer are\nreturned. The filter is intersected with all other filters set on the\nrequest.",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "enum": [
+              "INITIATOR_UNKNOWN",
+              "INITIATOR_LOCAL",
+              "INITIATOR_REMOTE",
+              "INITIATOR_BOTH"
+            ],
+            "default": "INITIATOR_UNKNOWN"
           }
         ],
         "tags": [
